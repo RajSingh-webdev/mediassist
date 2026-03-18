@@ -1,0 +1,132 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>MediAI — Patient Check-In</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600&family=Instrument+Serif:ital,wght@0,600;1,400&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="style.css"/>
+</head>
+<body class="patient-body">
+
+  <header class="kiosk-topbar">
+    <div class="kiosk-brand">
+      <div class="brand-icon">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
+          <rect x="3" y="3" width="18" height="18" rx="4" fill="#fff"/>
+          <path d="M12 7v10M7 12h10" stroke="#1a56db" stroke-width="2.5" stroke-linecap="round"/>
+        </svg>
+      </div>
+      <span class="brand-name">MediAI</span>
+    </div>
+    <div class="kiosk-time" id="kiosk-clock"></div>
+  </header>
+
+  <main class="kiosk-main">
+    <div class="kiosk-card">
+
+      <div class="kiosk-welcome">
+        <h1 class="kiosk-title">Patient <em>Check-In</em></h1>
+        <p class="kiosk-subtitle">Please fill in your details below. A staff member will assist you shortly.</p>
+      </div>
+
+      <div class="mic-section">
+        <button class="mic-btn" id="mic-btn" onclick="toggleMic()" title="Voice input coming soon">
+          <svg width="26" height="26" viewBox="0 0 24 24" fill="none">
+            <path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z" stroke="currentColor" stroke-width="2"/>
+            <path d="M19 10v2a7 7 0 0 1-14 0v-2M12 19v4M8 23h8" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+          </svg>
+        </button>
+        <p class="mic-label" id="mic-label">Tap to speak <span class="mic-soon">(Coming Soon)</span></p>
+        <div class="mic-bars" id="mic-bars">
+          <span></span><span></span><span></span><span></span><span></span>
+        </div>
+      </div>
+
+      <div class="kiosk-divider"><span>or fill in manually</span></div>
+
+      <form class="patient-form" onsubmit="return false;">
+
+        <div class="pform-row">
+          <div class="pform-group">
+            <label class="pform-label" for="p-name">Full Name</label>
+            <input type="text" id="p-name" class="pform-input" placeholder="e.g. James Whitmore"/>
+          </div>
+          <div class="pform-group pform-group-sm">
+            <label class="pform-label" for="p-age">Age</label>
+            <input type="number" id="p-age" class="pform-input" placeholder="e.g. 54" min="0" max="120"/>
+          </div>
+          <div class="pform-group pform-group-sm">
+            <label class="pform-label" for="p-gender">Gender</label>
+            <select id="p-gender" class="pform-input pform-select">
+              <option value="">Select</option>
+              <option>Male</option>
+              <option>Female</option>
+              <option>Other</option>
+              <option>Prefer not to say</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="pform-group">
+          <label class="pform-label" for="p-symptoms">
+            Symptoms <span class="pform-hint">Describe what you are feeling</span>
+          </label>
+          <textarea id="p-symptoms" class="pform-input pform-textarea" placeholder="e.g. chest pain, fever, shortness of breath..."></textarea>
+        </div>
+
+        <div class="pform-row">
+          <div class="pform-group">
+            <label class="pform-label" for="p-allergies">
+              Known Allergies <span class="pform-hint">Medicines, food, etc.</span>
+            </label>
+            <input type="text" id="p-allergies" class="pform-input" placeholder="e.g. Penicillin, NSAIDs"/>
+          </div>
+          <div class="pform-group">
+            <label class="pform-label" for="p-conditions">
+              Existing Conditions <span class="pform-hint">Chronic illnesses</span>
+            </label>
+            <input type="text" id="p-conditions" class="pform-input" placeholder="e.g. Diabetes, Hypertension"/>
+          </div>
+        </div>
+
+        <div class="pform-group">
+          <label class="pform-label" for="p-medications">
+            Current Medications <span class="pform-hint">List all medicines you currently take</span>
+          </label>
+          <input type="text" id="p-medications" class="pform-input" placeholder="e.g. Metformin 500mg, Atorvastatin 10mg"/>
+        </div>
+
+        <div class="p-alert" id="p-alert" style="display:none"></div>
+
+        <div class="pform-actions">
+          <button type="button" class="pform-clear-btn" onclick="clearPatientForm()">Clear</button>
+          <button type="button" class="pform-submit-btn" onclick="submitPatientForm()">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none"><path d="M5 12h14M12 5l7 7-7 7" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+            Submit & Proceed
+          </button>
+        </div>
+
+      </form>
+    </div>
+
+    <div class="kiosk-success" id="kiosk-success" style="display:none">
+      <div class="success-icon">
+        <svg width="48" height="48" viewBox="0 0 24 24" fill="none"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14" stroke="#15803d" stroke-width="2"/><polyline points="22 4 12 14.01 9 11.01" stroke="#15803d" stroke-width="2" stroke-linecap="round"/></svg>
+      </div>
+      <h2 class="success-title">Check-In Complete</h2>
+      <p class="success-msg">Your information has been received. Please take a seat — a staff member will call your name shortly.</p>
+      <p class="success-token">Your token: <strong id="success-token-num"></strong></p>
+      <button class="pform-submit-btn" style="margin-top:24px" onclick="resetKiosk()">New Check-In</button>
+    </div>
+  </main>
+
+  <footer class="kiosk-footer">
+    MediAI Patient Portal &nbsp;·&nbsp; For emergencies, inform staff immediately
+  </footer>
+
+  <script src="script.js"></script>
+</body>
+</html>

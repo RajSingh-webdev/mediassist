@@ -1,0 +1,280 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>MediAI — Staff Dashboard</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600&family=Instrument+Serif:ital,wght@0,600;1,400&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="style.css"/>
+</head>
+<body class="staff-body">
+
+  <header class="staff-topbar">
+    <div class="tb-left">
+      <div class="staff-brand">
+        <div class="brand-icon brand-icon-blue">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none">
+            <rect x="3" y="3" width="18" height="18" rx="4" fill="#fff"/>
+            <path d="M12 7v10M7 12h10" stroke="#1a56db" stroke-width="2.5" stroke-linecap="round"/>
+          </svg>
+        </div>
+        <span class="brand-name">MediAI</span>
+        <span class="brand-tag">Staff Portal</span>
+      </div>
+      <nav class="staff-nav">
+        <a href="#" class="snav active">Dashboard</a>
+        <a href="#" class="snav">Queue</a>
+        <a href="#" class="snav">History</a>
+        <a href="#" class="snav">Settings</a>
+      </nav>
+    </div>
+    <div class="tb-right">
+      <div class="ai-status"><span class="ai-dot"></span>AI Active</div>
+      <div class="staff-time" id="staff-clock"></div>
+      <div class="staff-user">
+        <img src="https://i.pravatar.cc/32?img=12" alt="Dr. Chen"/>
+        <div>
+          <span class="su-name">Dr. Sarah Chen</span>
+          <span class="su-role">Senior Physician</span>
+        </div>
+      </div>
+    </div>
+  </header>
+
+  <div class="staff-shell">
+
+    <aside class="staff-sidebar">
+      <div class="sb-section">
+        <p class="sb-heading">ACTIVE PATIENT</p>
+        <div class="sb-patient-card">
+          <img src="https://i.pravatar.cc/44?img=47" alt="Patient"/>
+          <div>
+            <p class="sb-pname" id="sb-name">James Whitmore</p>
+            <p class="sb-pid">Token #042 · P-2041</p>
+          </div>
+        </div>
+        <div class="priority-badge" id="priority-badge">
+          <span class="pb-dot"></span>
+          <span id="priority-label">Normal</span>
+        </div>
+      </div>
+
+      <div class="sb-section">
+        <p class="sb-heading">VITALS SNAPSHOT</p>
+        <div class="sb-vital"><span>Blood Pressure</span><span class="sv-val" id="sb-bp">—</span></div>
+        <div class="sb-vital"><span>Heart Rate</span><span class="sv-val" id="sb-hr">—</span></div>
+        <div class="sb-vital"><span>Temperature</span><span class="sv-val" id="sb-temp">—</span></div>
+        <div class="sb-vital"><span>SpO₂</span><span class="sv-val">98%</span></div>
+      </div>
+
+      <div class="sb-section">
+        <p class="sb-heading">SESSION</p>
+        <div class="sb-vital"><span>Admitted</span><span class="sv-val">Mar 19, 2026</span></div>
+        <div class="sb-vital"><span>Ward</span><span class="sv-val">4B · Rm 12</span></div>
+        <div class="sb-vital"><span>Nurse</span><span class="sv-val">N. Patel</span></div>
+      </div>
+
+      <div class="sb-note-box">
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="10" stroke="currentColor" stroke-width="1.8"/><path d="M12 16v-4M12 8h.01" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+        Data submitted via Patient Kiosk. Verify before proceeding.
+      </div>
+
+      <a href="patient.html" class="sb-link-btn">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none"><path d="M15 3H5a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V9l-6-6z" stroke="currentColor" stroke-width="2"/><polyline points="15 3 15 9 21 9" stroke="currentColor" stroke-width="2"/></svg>
+        Open Patient Kiosk
+      </a>
+    </aside>
+
+    <main class="staff-content">
+
+      <div class="sc-header">
+        <div>
+          <div class="sc-breadcrumb">Dashboard <span>/</span> Active Patient <span>/</span> <b>James Whitmore</b></div>
+          <h1 class="sc-title">Patient <em>Record</em></h1>
+        </div>
+        <div class="sc-header-right">
+          <div class="timestamp-box">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="10" stroke="currentColor" stroke-width="1.8"/><polyline points="12 6 12 12 16 14" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>
+            Last updated: <span id="last-updated">—</span>
+          </div>
+          <button class="hdr-action-btn" onclick="window.print()">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none"><polyline points="6 9 6 2 18 2 18 9" stroke="currentColor" stroke-width="2"/><path d="M6 18H4a2 2 0 0 1-2-2V11a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2" stroke="currentColor" stroke-width="2"/><rect x="6" y="14" width="12" height="8" stroke="currentColor" stroke-width="2"/></svg>
+            Print
+          </button>
+        </div>
+      </div>
+
+      <div class="ai-alert-banner" id="ai-alert-banner" style="display:none">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z" stroke="currentColor" stroke-width="2"/><line x1="12" y1="9" x2="12" y2="13" stroke="currentColor" stroke-width="2"/><line x1="12" y1="17" x2="12.01" y2="17" stroke="currentColor" stroke-width="2.5"/></svg>
+        <span id="ai-alert-text"></span>
+      </div>
+
+      <div class="staff-grid">
+
+        <!-- Patient Info -->
+        <div class="s-card s-card-full">
+          <div class="s-card-header">
+            <div>
+              <h2 class="s-card-title">Patient Information</h2>
+              <p class="s-card-sub">Submitted via kiosk · Review and confirm</p>
+            </div>
+            <div class="s-card-actions">
+              <span class="lock-badge" id="lock-badge">
+                <svg width="11" height="11" viewBox="0 0 24 24" fill="none"><rect x="3" y="11" width="18" height="11" rx="2" stroke="currentColor" stroke-width="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+                Locked
+              </span>
+              <button class="s-btn s-btn-edit" id="btn-edit" onclick="toggleEdit()">
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" stroke="currentColor" stroke-width="2"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" stroke="currentColor" stroke-width="2"/></svg>
+                Edit
+              </button>
+              <button class="s-btn s-btn-save" id="btn-save" onclick="saveRecord()" disabled>
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z" stroke="currentColor" stroke-width="2"/><polyline points="17 21 17 13 7 13 7 21" stroke="currentColor" stroke-width="2"/><polyline points="7 3 7 8 15 8" stroke="currentColor" stroke-width="2"/></svg>
+                Save Record
+              </button>
+            </div>
+          </div>
+          <div class="s-divider"></div>
+          <div class="s-fields">
+            <div class="s-field-group">
+              <label class="s-flabel">Full Name</label>
+              <input type="text" class="s-finput" id="s-name" value="James Whitmore" disabled/>
+            </div>
+            <div class="s-field-group">
+              <label class="s-flabel">Age</label>
+              <input type="number" class="s-finput" id="s-age" value="54" disabled/>
+            </div>
+            <div class="s-field-group">
+              <label class="s-flabel">Gender</label>
+              <select class="s-finput" id="s-gender" disabled>
+                <option>Male</option>
+                <option>Female</option>
+                <option>Other</option>
+              </select>
+            </div>
+            <div class="s-field-group s-field-full">
+              <label class="s-flabel">Presenting Symptoms</label>
+              <textarea class="s-finput s-ftextarea" id="s-symptoms" disabled>Chest tightness, shortness of breath, mild fever (38.2°C), fatigue since 3 days</textarea>
+            </div>
+            <div class="s-field-group">
+              <label class="s-flabel">Known Allergies</label>
+              <input type="text" class="s-finput s-finput-warn" id="s-allergies" value="Penicillin, NSAIDs" disabled/>
+            </div>
+            <div class="s-field-group">
+              <label class="s-flabel">Existing Conditions</label>
+              <input type="text" class="s-finput" id="s-conditions" value="Hypertension, Type 2 Diabetes" disabled/>
+            </div>
+            <div class="s-field-group s-field-full">
+              <label class="s-flabel">Current Medications</label>
+              <input type="text" class="s-finput" id="s-medications" value="Metformin 500mg, Amlodipine 5mg, Atorvastatin 10mg" disabled/>
+            </div>
+          </div>
+        </div>
+
+        <!-- Vitals -->
+        <div class="s-card">
+          <div class="s-card-header">
+            <div>
+              <h2 class="s-card-title">Vitals</h2>
+              <p class="s-card-sub">Entered by nursing staff</p>
+            </div>
+            <button class="s-btn s-btn-edit" id="btn-vitals-edit" onclick="toggleVitalsEdit()">
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" stroke="currentColor" stroke-width="2"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" stroke="currentColor" stroke-width="2"/></svg>
+              Edit
+            </button>
+          </div>
+          <div class="s-divider"></div>
+          <div class="vitals-grid">
+            <div class="vital-card">
+              <div class="vc-icon vc-icon-red">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z" stroke="currentColor" stroke-width="2"/></svg>
+              </div>
+              <div><p class="vc-label">Blood Pressure</p><input type="text" class="vc-input" id="v-bp" value="128/84 mmHg" disabled/></div>
+            </div>
+            <div class="vital-card">
+              <div class="vc-icon vc-icon-blue">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+              </div>
+              <div><p class="vc-label">Heart Rate</p><input type="text" class="vc-input" id="v-hr" value="88 bpm" disabled/></div>
+            </div>
+            <div class="vital-card">
+              <div class="vc-icon vc-icon-amber">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none"><path d="M14 14.76V3.5a2.5 2.5 0 0 0-5 0v11.26a4.5 4.5 0 1 0 5 0z" stroke="currentColor" stroke-width="2"/></svg>
+              </div>
+              <div><p class="vc-label">Temperature</p><input type="text" class="vc-input" id="v-temp" value="38.2 °C" disabled/></div>
+            </div>
+            <div class="vital-card">
+              <div class="vc-icon vc-icon-green">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="10" stroke="currentColor" stroke-width="2"/><path d="M12 8v4M12 16h.01" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+              </div>
+              <div><p class="vc-label">SpO₂</p><input type="text" class="vc-input" id="v-spo2" value="98 %" disabled/></div>
+            </div>
+          </div>
+        </div>
+
+        <!-- AI Analysis -->
+        <div class="s-card">
+          <div class="s-card-header">
+            <div>
+              <h2 class="s-card-title">AI Analysis</h2>
+              <p class="s-card-sub">Auto-generated · Staff must verify</p>
+            </div>
+            <span class="ai-tag">✦ AI</span>
+          </div>
+          <div class="s-divider"></div>
+          <div class="ai-analysis-body">
+            <div class="priority-row">
+              <p class="pr-label">Case Priority</p>
+              <div class="priority-pills">
+                <button class="ppill ppill-normal active" onclick="setPriority('Normal', this)">Normal</button>
+                <button class="ppill ppill-urgent" onclick="setPriority('Urgent', this)">Urgent</button>
+                <button class="ppill ppill-critical" onclick="setPriority('Critical', this)">Critical</button>
+              </div>
+            </div>
+            <div class="s-divider"></div>
+            <div class="ai-insight-block">
+              <div class="aib-header">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="10" stroke="#1a56db" stroke-width="1.8"/><path d="M12 16v-4M12 8h.01" stroke="#1a56db" stroke-width="2" stroke-linecap="round"/></svg>
+                Symptom Insight
+              </div>
+              <p class="aib-text" id="ai-insight-text">Analysing symptoms...</p>
+            </div>
+          </div>
+        </div>
+
+        <!-- Staff Notes -->
+        <div class="s-card s-card-full">
+          <div class="s-card-header">
+            <div>
+              <h2 class="s-card-title">Staff Notes</h2>
+              <p class="s-card-sub">Internal notes — not visible to patient</p>
+            </div>
+            <button class="s-btn s-btn-save" onclick="saveNotes()">
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z" stroke="currentColor" stroke-width="2"/><polyline points="17 21 17 13 7 13 7 21" stroke="currentColor" stroke-width="2"/><polyline points="7 3 7 8 15 8" stroke="currentColor" stroke-width="2"/></svg>
+              Save Notes
+            </button>
+          </div>
+          <div class="s-divider"></div>
+          <div class="notes-body">
+            <textarea class="notes-textarea" id="staff-notes" placeholder="Add clinical observations, treatment plan, follow-up instructions..."></textarea>
+            <div class="notes-footer">
+              <span class="notes-author">Dr. Sarah Chen · Ward 4B</span>
+              <span class="notes-saved" id="notes-saved"></span>
+            </div>
+          </div>
+        </div>
+
+      </div>
+
+      <div class="s-toast" id="s-toast">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14" stroke="currentColor" stroke-width="2"/><polyline points="22 4 12 14.01 9 11.01" stroke="currentColor" stroke-width="2"/></svg>
+        <span id="s-toast-msg">Record saved successfully.</span>
+      </div>
+
+    </main>
+  </div>
+
+  <script src="script.js"></script>
+</body>
+</html>

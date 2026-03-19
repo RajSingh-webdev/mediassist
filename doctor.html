@@ -1,0 +1,933 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>MediAI — Doctor Panel</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600&family=Instrument+Serif:ital,wght@0,600;1,400&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="style.css"/>
+  <style>
+    .doctor-body { background: var(--gray-50); min-height: 100vh; }
+    .doc-sidebar { width: 240px; }
+    .doc-content  { margin-left: 240px; }
+
+    .ai-status-doctor {
+      display: flex; align-items: center; gap: 6px;
+      font-size: 0.75rem; font-weight: 600; color: #7c3aed;
+      background: #ede9fe; border: 1px solid #c4b5fd;
+      padding: 4px 10px; border-radius: 99px;
+    }
+    .ai-dot-purple { width: 6px; height: 6px; background: #7c3aed; border-radius: 50%; animation: blink 2s ease-in-out infinite; }
+
+    .doc-summary-strip {
+      display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px;
+      margin-bottom: 16px;
+    }
+    .dss-card {
+      background: var(--white); border: 1px solid var(--border);
+      border-radius: var(--radius-md); padding: 13px 15px;
+      display: flex; align-items: center; gap: 11px;
+      box-shadow: var(--shadow-xs); animation: slide-up 0.3s var(--ease) both;
+    }
+    .dss-icon { width: 38px; height: 38px; border-radius: 10px; flex-shrink: 0; display: flex; align-items: center; justify-content: center; }
+    .dss-icon-red   { background: var(--red-100);   color: var(--red-700); }
+    .dss-icon-blue  { background: var(--blue-100);  color: var(--blue-700); }
+    .dss-icon-amber { background: var(--amber-100); color: var(--amber-700); }
+    .dss-icon-green { background: var(--green-100); color: var(--green-700); }
+    .dss-label { font-size: 0.67rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.07em; color: var(--gray-400); margin-bottom: 2px; }
+    .dss-value { font-size: 0.92rem; font-weight: 700; color: var(--gray-900); line-height: 1.2; }
+
+    .doc-main-grid { display: grid; grid-template-columns: 1fr 380px; gap: 16px; align-items: start; }
+    .doc-left  { display: flex; flex-direction: column; gap: 16px; }
+    .doc-right { display: flex; flex-direction: column; gap: 16px; }
+
+    .info-row { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 12px; padding: 14px 18px; }
+    .info-field { display: flex; flex-direction: column; gap: 4px; }
+    .info-label { font-size: 0.67rem; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; color: var(--gray-400); }
+    .info-val {
+      font-size: 0.86rem; font-weight: 500; color: var(--gray-900);
+      background: var(--gray-50); border: 1px solid var(--border);
+      border-radius: var(--radius-sm); padding: 9px 12px; line-height: 1.4;
+    }
+    .info-val.allergy-flag { background: var(--amber-100); border-color: #fde68a; color: var(--amber-700); font-weight: 600; }
+    .info-span3 { grid-column: span 3; }
+    .info-val.symptom-area { min-height: 60px; }
+
+    .ai-diag-body { padding: 16px 18px; display: flex; flex-direction: column; gap: 14px; }
+    .ai-generate-btn {
+      display: flex; align-items: center; justify-content: center; gap: 8px;
+      width: 100%; padding: 11px 18px; font-size: 0.85rem; font-weight: 600;
+      color: var(--white); background: linear-gradient(135deg, #7c3aed, #4f46e5);
+      border: none; border-radius: var(--radius-sm); cursor: pointer;
+      box-shadow: 0 2px 10px rgba(124,58,237,0.3); transition: all 0.18s var(--ease);
+    }
+    .ai-generate-btn:hover:not(:disabled) { opacity: 0.9; transform: translateY(-1px); box-shadow: 0 4px 16px rgba(124,58,237,0.4); }
+    .ai-generate-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+    .ai-diag-output {
+      background: #faf5ff; border: 1px solid #e9d5ff; border-left: 3px solid #7c3aed;
+      border-radius: var(--radius-sm); padding: 14px 15px;
+      font-size: 0.82rem; color: var(--gray-700); line-height: 1.75;
+      display: none; animation: slide-up 0.25s var(--ease); white-space: pre-wrap;
+    }
+    .ai-diag-output.visible { display: block; }
+    .ai-diag-header { font-size: 0.68rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em; color: #7c3aed; margin-bottom: 8px; display: flex; align-items: center; gap: 6px; }
+    .ai-thinking { display: flex; align-items: center; gap: 8px; font-size: 0.8rem; color: #7c3aed; font-weight: 500; padding: 6px 0; }
+    .ai-thinking .dot-spin { display: flex; gap: 4px; }
+    .ai-thinking .dot-spin span { width: 5px; height: 5px; border-radius: 50%; background: #7c3aed; animation: dot-bounce 1.2s ease-in-out infinite; }
+    .ai-thinking .dot-spin span:nth-child(2) { animation-delay: 0.2s; }
+    .ai-thinking .dot-spin span:nth-child(3) { animation-delay: 0.4s; }
+    @keyframes dot-bounce { 0%,80%,100%{transform:translateY(0)} 40%{transform:translateY(-6px)} }
+
+    .rx-section { display: flex; flex-direction: column; gap: 10px; padding: 14px 18px; }
+    .rx-item { display: grid; grid-template-columns: 1fr 110px 170px; gap: 8px; align-items: center; }
+    .rx-col-label { font-size: 0.65rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.07em; color: var(--gray-400); margin-bottom: 3px; }
+    .rx-input {
+      width: 100%; padding: 8px 11px; font-size: 0.84rem; font-family: var(--font);
+      color: var(--gray-900); background: var(--gray-50);
+      border: 1px solid var(--border); border-radius: var(--radius-sm);
+      outline: none; transition: all 0.16s var(--ease); appearance: none;
+    }
+    .rx-input::placeholder { color: var(--gray-400); }
+    .rx-input:focus { border-color: var(--blue-500); background: var(--white); box-shadow: 0 0 0 3px rgba(37,99,235,0.1); }
+    .rx-remove-btn {
+      display: flex; align-items: center; justify-content: center;
+      width: 28px; height: 28px; border-radius: 6px;
+      background: var(--red-50); border: 1px solid #fca5a5;
+      color: var(--red-700); cursor: pointer; flex-shrink: 0; transition: all 0.15s;
+    }
+    .rx-remove-btn:hover { background: var(--red-100); }
+    .rx-add-btn {
+      display: inline-flex; align-items: center; gap: 6px;
+      padding: 7px 14px; font-size: 0.78rem; font-weight: 600;
+      color: var(--blue-600); background: var(--blue-50);
+      border: 1px dashed var(--blue-200); border-radius: var(--radius-sm);
+      cursor: pointer; transition: all 0.15s var(--ease); align-self: flex-start;
+    }
+    .rx-add-btn:hover { background: var(--blue-100); border-color: var(--blue-500); }
+
+    .tests-grid { display: flex; flex-wrap: wrap; gap: 8px; padding: 14px 18px; }
+    .test-chip {
+      display: inline-flex; align-items: center; gap: 6px;
+      padding: 6px 12px; font-size: 0.78rem; font-weight: 500;
+      background: var(--gray-100); border: 1px solid var(--border);
+      border-radius: 99px; color: var(--gray-700); cursor: pointer;
+      transition: all 0.14s var(--ease); user-select: none;
+    }
+    .test-chip:hover { border-color: var(--blue-500); color: var(--blue-600); background: var(--blue-50); }
+    .test-chip.selected { background: var(--blue-600); border-color: var(--blue-700); color: var(--white); box-shadow: 0 1px 4px rgba(26,86,219,0.3); }
+    .tests-custom-row { display: flex; gap: 8px; padding: 0 18px 14px; }
+    .tests-custom-input {
+      flex: 1; padding: 8px 12px; font-size: 0.83rem; font-family: var(--font);
+      border: 1px solid var(--border); border-radius: var(--radius-sm);
+      background: var(--gray-50); outline: none; color: var(--gray-900); transition: all 0.16s;
+    }
+    .tests-custom-input:focus { border-color: var(--blue-500); background: var(--white); box-shadow: 0 0 0 3px rgba(37,99,235,0.1); }
+
+    .advice-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; padding: 14px 18px; }
+    .advice-chip {
+      display: flex; align-items: center; gap: 8px;
+      padding: 9px 12px; font-size: 0.8rem; font-weight: 500;
+      background: var(--gray-50); border: 1px solid var(--border);
+      border-radius: var(--radius-sm); cursor: pointer; transition: all 0.14s; color: var(--gray-700);
+    }
+    .advice-chip:hover { border-color: #86efac; color: var(--green-700); background: var(--green-50); }
+    .advice-chip.selected { background: var(--green-50); border-color: #86efac; color: var(--green-700); font-weight: 600; }
+    .advice-notes-wrap { padding: 0 18px 14px; }
+    .advice-notes {
+      width: 100%; font-family: var(--font); font-size: 0.83rem; color: var(--gray-800);
+      background: var(--gray-50); border: 1px solid var(--border);
+      border-radius: var(--radius-sm); padding: 11px 13px; min-height: 80px;
+      line-height: 1.7; resize: vertical; outline: none; transition: all 0.16s;
+    }
+    .advice-notes::placeholder { color: var(--gray-400); }
+    .advice-notes:focus { border-color: var(--blue-500); background: var(--white); box-shadow: 0 0 0 3px rgba(37,99,235,0.1); }
+
+    .followup-body { padding: 14px 18px; display: flex; flex-direction: column; gap: 10px; }
+    .followup-row { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+    .followup-field { display: flex; flex-direction: column; gap: 4px; }
+    .followup-label { font-size: 0.67rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.07em; color: var(--gray-400); }
+    .followup-input {
+      padding: 9px 12px; font-size: 0.84rem; font-family: var(--font);
+      border: 1px solid var(--border); border-radius: var(--radius-sm);
+      background: var(--gray-50); outline: none; color: var(--gray-900);
+      transition: all 0.16s; appearance: none;
+    }
+    .followup-input:focus { border-color: var(--blue-500); background: var(--white); box-shadow: 0 0 0 3px rgba(37,99,235,0.1); }
+
+    .dx-body { padding: 14px 18px; display: flex; flex-direction: column; gap: 10px; }
+    .dx-input-row { display: flex; gap: 8px; }
+    .dx-input {
+      flex: 1; padding: 9px 12px; font-size: 0.84rem; font-family: var(--font);
+      border: 1px solid var(--border); border-radius: var(--radius-sm);
+      background: var(--gray-50); outline: none; color: var(--gray-900); transition: all 0.16s;
+    }
+    .dx-input:focus { border-color: var(--blue-500); background: var(--white); box-shadow: 0 0 0 3px rgba(37,99,235,0.1); }
+    .dx-add-btn {
+      padding: 9px 14px; font-size: 0.82rem; font-weight: 600;
+      color: var(--white); background: var(--blue-600);
+      border: 1px solid var(--blue-700); border-radius: var(--radius-sm);
+      cursor: pointer; transition: all 0.15s; white-space: nowrap;
+    }
+    .dx-add-btn:hover { background: var(--blue-700); }
+    .dx-tags { display: flex; flex-wrap: wrap; gap: 7px; min-height: 24px; }
+    .dx-tag {
+      display: inline-flex; align-items: center; gap: 5px;
+      padding: 5px 11px; font-size: 0.78rem; font-weight: 600;
+      background: var(--blue-50); border: 1px solid var(--blue-200);
+      color: var(--blue-700); border-radius: 99px;
+    }
+    .dx-tag button { background: none; border: none; color: var(--blue-500); cursor: pointer; font-size: 1rem; line-height: 1; padding: 0 0 0 2px; }
+    .dx-tag button:hover { color: var(--red-700); }
+
+    .finalize-body { padding: 14px 18px; display: flex; flex-direction: column; gap: 12px; }
+    .finalize-status {
+      display: flex; align-items: center; gap: 8px;
+      font-size: 0.8rem; font-weight: 500; color: var(--gray-500);
+      padding: 10px 13px; background: var(--gray-50);
+      border: 1px solid var(--border); border-radius: var(--radius-sm);
+    }
+    .finalize-status.ready { color: var(--green-700); background: var(--green-50); border-color: #bbf7d0; }
+    .finalize-btns { display: flex; gap: 10px; }
+    .finalize-btn-primary {
+      flex: 1; display: flex; align-items: center; justify-content: center; gap: 8px;
+      padding: 12px 18px; font-size: 0.86rem; font-weight: 700;
+      color: var(--white); background: var(--blue-600);
+      border: 1px solid var(--blue-700); border-radius: var(--radius-sm);
+      cursor: pointer; box-shadow: 0 2px 8px rgba(26,86,219,0.3); transition: all 0.18s var(--ease);
+    }
+    .finalize-btn-primary:hover { background: var(--blue-700); transform: translateY(-1px); }
+    .finalize-btn-secondary {
+      display: flex; align-items: center; justify-content: center; gap: 7px;
+      padding: 12px 16px; font-size: 0.83rem; font-weight: 600;
+      color: var(--gray-700); background: var(--white);
+      border: 1px solid var(--border-md); border-radius: var(--radius-sm);
+      cursor: pointer; transition: all 0.15s;
+    }
+    .finalize-btn-secondary:hover { background: var(--gray-50); border-color: var(--gray-400); }
+
+    .allergy-banner {
+      display: none; align-items: center; gap: 10px;
+      padding: 11px 15px; margin-bottom: 14px;
+      background: var(--amber-100); border: 1px solid #fde68a;
+      border-left: 3px solid var(--amber-700);
+      border-radius: var(--radius-sm); font-size: 0.83rem;
+      font-weight: 600; color: var(--amber-700); animation: slide-up 0.2s var(--ease);
+    }
+    .allergy-banner.show { display: flex; }
+
+    .no-patient-state {
+      display: none; flex-direction: column; align-items: center;
+      justify-content: center; padding: 60px 24px; text-align: center; gap: 14px;
+    }
+    .no-patient-state.show { display: flex; }
+    .np-icon {
+      width: 64px; height: 64px; border-radius: 50%;
+      background: var(--gray-100); border: 2px solid var(--border);
+      display: flex; align-items: center; justify-content: center; color: var(--gray-400);
+    }
+    .np-title { font-size: 1rem; font-weight: 600; color: var(--gray-700); }
+    .np-sub { font-size: 0.82rem; color: var(--gray-400); max-width: 300px; }
+
+    @media print {
+      .staff-topbar, .staff-sidebar, .doc-summary-strip,
+      .ai-diag-body, .finalize-body, .s-toast, .no-print { display: none !important; }
+      .doc-content { margin-left: 0 !important; }
+      body { background: white !important; }
+      .s-card { box-shadow: none !important; border: 1px solid #ccc !important; break-inside: avoid; }
+    }
+
+    @media (max-width: 1100px) {
+      .doc-main-grid { grid-template-columns: 1fr; }
+      .doc-summary-strip { grid-template-columns: 1fr 1fr; }
+    }
+    @media (max-width: 860px) {
+      .doc-content { margin-left: 0; }
+      .info-row { grid-template-columns: 1fr 1fr; }
+      .advice-grid { grid-template-columns: 1fr; }
+      .followup-row { grid-template-columns: 1fr; }
+      .rx-item { grid-template-columns: 1fr; }
+    }
+    @media (max-width: 600px) {
+      .doc-summary-strip { grid-template-columns: 1fr; }
+      .info-row { grid-template-columns: 1fr; }
+      .info-span3 { grid-column: span 1; }
+    }
+  </style>
+</head>
+<body class="doctor-body">
+
+  <header class="staff-topbar">
+    <div class="tb-left">
+      <div class="staff-brand">
+        <div class="brand-icon brand-icon-blue">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none">
+            <rect x="3" y="3" width="18" height="18" rx="4" fill="#fff"/>
+            <path d="M12 7v10M7 12h10" stroke="#1a56db" stroke-width="2.5" stroke-linecap="round"/>
+          </svg>
+        </div>
+        <span class="brand-name">MediAI</span>
+        <span class="brand-tag">Doctor Panel</span>
+      </div>
+      <nav class="staff-nav">
+        <a href="staff.html" class="snav">Staff Portal</a>
+        <a href="vitals.html" class="snav">Vitals Desk</a>
+        <a href="doctor.html" class="snav active">Doctor Panel</a>
+      </nav>
+    </div>
+    <div class="tb-right">
+      <div class="ai-status-doctor"><span class="ai-dot-purple"></span>AI Ready</div>
+      <div class="staff-time" id="staff-clock"></div>
+    </div>
+  </header>
+
+  <div class="staff-shell">
+
+    <aside class="staff-sidebar doc-sidebar">
+      <div class="sb-section">
+        <p class="sb-heading">ACTIVE PATIENT</p>
+        <div class="sb-patient-card">
+          <img src="https://img.freepik.com/premium-vector/default-avatar-profile-icon-social-media-user-image-gray-avatar-icon-blank-profile-silhouette-vector-illustration_561158-3407.jpg?semt=ais_rp_progressive&w=740&q=80" alt="Patient"/>
+          <div>
+            <p class="sb-pname" id="doc-sb-name">No patient loaded</p>
+            <p class="sb-pid" id="doc-sb-token">Token Pending</p>
+          </div>
+        </div>
+        <div class="priority-badge" id="doc-priority-badge">
+          <span class="pb-dot"></span>
+          <span id="doc-priority-label">Awaiting Data</span>
+        </div>
+      </div>
+
+      <div class="sb-section">
+        <p class="sb-heading">VITALS SNAPSHOT</p>
+        <div class="sb-vital"><span>Blood Pressure</span><span class="sv-val" id="doc-sb-bp">--</span></div>
+        <div class="sb-vital"><span>Heart Rate</span><span class="sv-val" id="doc-sb-hr">--</span></div>
+        <div class="sb-vital"><span>Temperature</span><span class="sv-val" id="doc-sb-temp">--</span></div>
+        <div class="sb-vital"><span>SpO&#8322;</span><span class="sv-val" id="doc-sb-spo2">--</span></div>
+      </div>
+
+      <div class="sb-section">
+        <p class="sb-heading">WORKFLOW</p>
+        <div class="sb-vital"><span>Registered</span><span class="sv-val" id="doc-sb-reg">--</span></div>
+        <div class="sb-vital"><span>Vitals Done</span><span class="sv-val" id="doc-sb-vdone">--</span></div>
+        <div class="sb-vital"><span>Stage</span><span class="sv-val" id="doc-sb-stage">--</span></div>
+      </div>
+
+      <div class="sb-note-box" id="doc-sb-note">
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="10" stroke="currentColor" stroke-width="1.8"/><path d="M12 16v-4M12 8h.01" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+        Waiting for a patient to be cleared from vitals desk.
+      </div>
+
+      <a href="vitals.html" class="sb-link-btn">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        Open Vitals Desk
+      </a>
+    </aside>
+
+    <main class="staff-content doc-content">
+
+      <div class="sc-header">
+        <div>
+          <div class="sc-breadcrumb">Doctor Panel <span>/</span> Active Case <span>/</span> <b id="doc-breadcrumb">No active case</b></div>
+          <h1 class="sc-title">Doctor <em>Consultation</em></h1>
+        </div>
+        <div class="sc-header-right">
+          <div class="timestamp-box">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="10" stroke="currentColor" stroke-width="1.8"/><polyline points="12 6 12 12 16 14" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>
+            Loaded: <span id="doc-loaded-time">--</span>
+          </div>
+          <button class="hdr-action-btn no-print" onclick="window.print()">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none"><polyline points="6 9 6 2 18 2 18 9" stroke="currentColor" stroke-width="2"/><path d="M6 18H4a2 2 0 0 1-2-2V11a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2" stroke="currentColor" stroke-width="2"/><rect x="6" y="14" width="12" height="8" stroke="currentColor" stroke-width="2"/></svg>
+            Print Prescription
+          </button>
+        </div>
+      </div>
+
+      <div class="allergy-banner" id="allergy-banner">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z" stroke="currentColor" stroke-width="2"/><line x1="12" y1="9" x2="12" y2="13" stroke="currentColor" stroke-width="2"/><line x1="12" y1="17" x2="12.01" y2="17" stroke="currentColor" stroke-width="2.5"/></svg>
+        <span id="allergy-banner-text">Known allergies on record — verify before prescribing.</span>
+      </div>
+
+      <div class="no-patient-state" id="no-patient-state">
+        <div class="np-icon">
+          <svg width="28" height="28" viewBox="0 0 24 24" fill="none"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" stroke="currentColor" stroke-width="1.8"/><circle cx="9" cy="7" r="4" stroke="currentColor" stroke-width="1.8"/><path d="M23 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>
+        </div>
+        <p class="np-title">No patient ready for review</p>
+        <p class="np-sub">A patient must complete registration and have vitals recorded before appearing here.</p>
+        <a href="vitals.html" class="pform-submit-btn" style="margin-top:4px;text-decoration:none">Go to Vitals Desk</a>
+      </div>
+
+      <div id="doc-main-content" style="display:none">
+
+        <div class="doc-summary-strip">
+          <div class="dss-card">
+            <div class="dss-icon dss-icon-red">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z" stroke="currentColor" stroke-width="2"/></svg>
+            </div>
+            <div><p class="dss-label">Blood Pressure</p><p class="dss-value" id="strip-bp">--</p></div>
+          </div>
+          <div class="dss-card">
+            <div class="dss-icon dss-icon-blue">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+            </div>
+            <div><p class="dss-label">Heart Rate</p><p class="dss-value" id="strip-hr">--</p></div>
+          </div>
+          <div class="dss-card">
+            <div class="dss-icon dss-icon-amber">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none"><path d="M14 14.76V3.5a2.5 2.5 0 0 0-5 0v11.26a4.5 4.5 0 1 0 5 0z" stroke="currentColor" stroke-width="2"/></svg>
+            </div>
+            <div><p class="dss-label">Temperature</p><p class="dss-value" id="strip-temp">--</p></div>
+          </div>
+          <div class="dss-card">
+            <div class="dss-icon dss-icon-green">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="10" stroke="currentColor" stroke-width="2"/><path d="M12 8v4M12 16h.01" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+            </div>
+            <div><p class="dss-label">SpO&#8322;</p><p class="dss-value" id="strip-spo2">--</p></div>
+          </div>
+        </div>
+
+        <div class="doc-main-grid">
+
+          <div class="doc-left">
+
+            <div class="s-card">
+              <div class="s-card-header">
+                <div>
+                  <h2 class="s-card-title">Patient Summary</h2>
+                  <p class="s-card-sub">Read-only · From registration &amp; vitals desk</p>
+                </div>
+                <span class="ai-tag" id="doc-case-status-tag">Loading...</span>
+              </div>
+              <div class="s-divider"></div>
+              <div class="info-row">
+                <div class="info-field">
+                  <span class="info-label">Full Name</span>
+                  <div class="info-val" id="doc-name">--</div>
+                </div>
+                <div class="info-field">
+                  <span class="info-label">Age</span>
+                  <div class="info-val" id="doc-age">--</div>
+                </div>
+                <div class="info-field">
+                  <span class="info-label">Gender</span>
+                  <div class="info-val" id="doc-gender">--</div>
+                </div>
+                <div class="info-field info-span3">
+                  <span class="info-label">Presenting Symptoms</span>
+                  <div class="info-val symptom-area" id="doc-symptoms">--</div>
+                </div>
+                <div class="info-field">
+                  <span class="info-label">Known Allergies</span>
+                  <div class="info-val" id="doc-allergies">--</div>
+                </div>
+                <div class="info-field">
+                  <span class="info-label">Existing Conditions</span>
+                  <div class="info-val" id="doc-conditions">--</div>
+                </div>
+                <div class="info-field">
+                  <span class="info-label">Current Medications</span>
+                  <div class="info-val" id="doc-medications">--</div>
+                </div>
+              </div>
+            </div>
+
+            <div class="s-card">
+              <div class="s-card-header">
+                <div>
+                  <h2 class="s-card-title">Diagnosis</h2>
+                  <p class="s-card-sub">Doctor's confirmed diagnosis — add one or more</p>
+                </div>
+              </div>
+              <div class="s-divider"></div>
+              <div class="dx-body">
+                <div class="dx-input-row">
+                  <input type="text" class="dx-input" id="dx-input" placeholder="e.g. Viral Fever, URTI, Hypertensive Crisis..." onkeydown="if(event.key==='Enter') addDiagnosis()"/>
+                  <button class="dx-add-btn" onclick="addDiagnosis()">+ Add</button>
+                </div>
+                <div class="dx-tags" id="dx-tags">
+                  <span style="font-size:0.76rem;color:var(--gray-400);">No diagnosis added yet.</span>
+                </div>
+              </div>
+            </div>
+
+            <div class="s-card">
+              <div class="s-card-header">
+                <div>
+                  <h2 class="s-card-title">Prescribed Medicines</h2>
+                  <p class="s-card-sub">Include dosage and frequency</p>
+                </div>
+              </div>
+              <div class="s-divider"></div>
+              <div class="rx-section" id="rx-list"></div>
+              <div style="padding:0 18px 14px">
+                <button class="rx-add-btn" onclick="addRxRow()">
+                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none"><line x1="12" y1="5" x2="12" y2="19" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"/><line x1="5" y1="12" x2="19" y2="12" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"/></svg>
+                  Add Medicine
+                </button>
+              </div>
+            </div>
+
+            <div class="s-card">
+              <div class="s-card-header">
+                <div>
+                  <h2 class="s-card-title">Recommended Tests</h2>
+                  <p class="s-card-sub">Tap to select · or add a custom test</p>
+                </div>
+              </div>
+              <div class="s-divider"></div>
+              <div class="tests-grid" id="tests-grid"></div>
+              <div class="tests-custom-row">
+                <input type="text" class="tests-custom-input" id="test-custom-input" placeholder="Type a custom test and press Enter..." onkeydown="if(event.key==='Enter') addCustomTest()"/>
+                <button class="s-btn s-btn-edit" onclick="addCustomTest()">Add</button>
+              </div>
+            </div>
+
+          </div>
+
+          <div class="doc-right">
+
+            <div class="s-card">
+              <div class="s-card-header">
+                <div>
+                  <h2 class="s-card-title">AI Diagnosis Assistant</h2>
+                  <p class="s-card-sub">Powered by Claude · Doctor must verify</p>
+                </div>
+                <span class="ai-tag" style="background:#ede9fe;border-color:#c4b5fd;color:#7c3aed">&#10022; AI</span>
+              </div>
+              <div class="s-divider"></div>
+              <div class="ai-diag-body">
+                <button class="ai-generate-btn" id="ai-gen-btn" onclick="runAIDiagnosis()">
+                  <svg width="15" height="15" viewBox="0 0 24 24" fill="none"><path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                  Generate AI Analysis
+                </button>
+                <div class="ai-thinking" id="ai-thinking" style="display:none">
+                  <div class="dot-spin"><span></span><span></span><span></span></div>
+                  Analysing patient data...
+                </div>
+                <div class="ai-diag-output" id="ai-diag-output">
+                  <div class="ai-diag-header">
+                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none"><path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5" stroke="#7c3aed" stroke-width="2" stroke-linecap="round"/></svg>
+                    AI Clinical Insight
+                  </div>
+                  <div id="ai-diag-text"></div>
+                </div>
+              </div>
+            </div>
+
+            <div class="s-card">
+              <div class="s-card-header">
+                <div>
+                  <h2 class="s-card-title">Diet &amp; Lifestyle Advice</h2>
+                  <p class="s-card-sub">Select applicable recommendations</p>
+                </div>
+              </div>
+              <div class="s-divider"></div>
+              <div class="advice-grid" id="advice-grid"></div>
+              <div class="advice-notes-wrap">
+                <textarea class="advice-notes" id="advice-notes" placeholder="Additional dietary or lifestyle notes for the patient..."></textarea>
+              </div>
+            </div>
+
+            <div class="s-card">
+              <div class="s-card-header">
+                <div>
+                  <h2 class="s-card-title">Follow-Up &amp; Referral</h2>
+                  <p class="s-card-sub">Schedule next visit or refer to specialist</p>
+                </div>
+              </div>
+              <div class="s-divider"></div>
+              <div class="followup-body">
+                <div class="followup-row">
+                  <div class="followup-field">
+                    <label class="followup-label">Follow-up In</label>
+                    <select class="followup-input" id="fu-when">
+                      <option value="">-- Select --</option>
+                      <option>2 days</option><option>3 days</option><option>5 days</option>
+                      <option>1 week</option><option>2 weeks</option><option>1 month</option>
+                      <option>As needed</option><option>No follow-up needed</option>
+                    </select>
+                  </div>
+                  <div class="followup-field">
+                    <label class="followup-label">Refer To</label>
+                    <select class="followup-input" id="fu-refer">
+                      <option value="">-- None --</option>
+                      <option>Cardiologist</option><option>Pulmonologist</option>
+                      <option>Neurologist</option><option>Dermatologist</option>
+                      <option>ENT Specialist</option><option>Orthopaedic</option>
+                      <option>Gastroenterologist</option><option>Diabetologist</option>
+                      <option>Psychiatrist</option><option>Paediatrician</option>
+                      <option>Other</option>
+                    </select>
+                  </div>
+                </div>
+                <div class="followup-field">
+                  <label class="followup-label">Special Instructions</label>
+                  <textarea class="followup-input" id="fu-notes" rows="3" placeholder="e.g. Return immediately if symptoms worsen. Avoid strenuous activity for 2 weeks..." style="resize:vertical;line-height:1.6"></textarea>
+                </div>
+              </div>
+            </div>
+
+            <div class="s-card">
+              <div class="s-card-header">
+                <div>
+                  <h2 class="s-card-title">Finalize &amp; Close Case</h2>
+                  <p class="s-card-sub">Save prescription and complete consultation</p>
+                </div>
+              </div>
+              <div class="s-divider"></div>
+              <div class="finalize-body">
+                <div class="finalize-status" id="finalize-status">
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="10" stroke="currentColor" stroke-width="1.8"/><path d="M12 16v-4M12 8h.01" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+                  Add at least one diagnosis before finalizing.
+                </div>
+                <div class="finalize-btns">
+                  <button class="finalize-btn-primary" onclick="finalizeCase()">
+                    <svg width="15" height="15" viewBox="0 0 24 24" fill="none"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14" stroke="currentColor" stroke-width="2"/><polyline points="22 4 12 14.01 9 11.01" stroke="currentColor" stroke-width="2"/></svg>
+                    Save &amp; Close Case
+                  </button>
+                  <button class="finalize-btn-secondary no-print" onclick="window.print()">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none"><polyline points="6 9 6 2 18 2 18 9" stroke="currentColor" stroke-width="2"/><path d="M6 18H4a2 2 0 0 1-2-2V11a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2" stroke="currentColor" stroke-width="2"/><rect x="6" y="14" width="12" height="8" stroke="currentColor" stroke-width="2"/></svg>
+                    Print
+                  </button>
+                </div>
+              </div>
+            </div>
+
+          </div>
+        </div>
+      </div>
+
+      <div class="s-toast" id="s-toast">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14" stroke="currentColor" stroke-width="2"/><polyline points="22 4 12 14.01 9 11.01" stroke="currentColor" stroke-width="2"/></svg>
+        <span id="s-toast-msg">Done.</span>
+      </div>
+
+    </main>
+  </div>
+
+<script>
+const patientRecordKey = 'mediAI_patient';
+function getPatientRecord() { try { return JSON.parse(localStorage.getItem(patientRecordKey)||'{}'); } catch(e){ return {}; } }
+function setPatientRecord(d) { localStorage.setItem(patientRecordKey, JSON.stringify(d)); }
+function cleanVal(v) { const s=String(v||'').trim(); return (s&&s!=='--'&&s!=='—')?s:''; }
+function formatSharedToken(t) { return t?`#${String(t).padStart(3,'0')}`:'Pending'; }
+function formatDisplayTime(v) {
+  if(!v) return '--';
+  const dt=new Date(v); if(isNaN(dt)) return '--';
+  return dt.toLocaleDateString('en-IN',{day:'2-digit',month:'short'})+' at '+dt.toLocaleTimeString('en-IN',{hour:'2-digit',minute:'2-digit',hour12:true});
+}
+function hasCompleteVitals(d) {
+  return Boolean(d&&d.vitals&&cleanVal(d.vitals.bp)&&cleanVal(d.vitals.hr)&&cleanVal(d.vitals.temp)&&cleanVal(d.vitals.spo2));
+}
+function showToast(msg) {
+  const t=document.getElementById('s-toast');
+  document.getElementById('s-toast-msg').textContent=msg;
+  t.classList.add('show'); setTimeout(()=>t.classList.remove('show'),3200);
+}
+function updateClock(){
+  const now=new Date();
+  const el=document.getElementById('staff-clock');
+  if(el) el.textContent=now.toLocaleDateString('en-IN',{day:'2-digit',month:'short',year:'numeric'})+' · '+now.toLocaleTimeString('en-IN',{hour:'2-digit',minute:'2-digit',second:'2-digit',hour12:true});
+}
+updateClock(); setInterval(updateClock,1000);
+
+const COMMON_TESTS = [
+  'CBC (Complete Blood Count)','Blood Sugar Fasting','Blood Sugar PP','HbA1c',
+  'Lipid Profile','LFT (Liver Function)','KFT (Kidney Function)',
+  'Urine Routine','Thyroid Profile (TSH)','Chest X-Ray','ECG','2D Echo',
+  'COVID Antigen','Dengue NS1','Malaria Antigen','Sputum Culture',
+  'Blood Culture','CRP (C-Reactive Protein)','ESR','Vitamin D3',
+  'Vitamin B12','Serum Ferritin','USG Abdomen','MRI Brain','CT Scan Chest'
+];
+const ADVICE_OPTIONS = [
+  {icon:'💧',label:'Drink 2–3 litres of fluids daily'},
+  {icon:'🛏️',label:'Take adequate rest'},
+  {icon:'🍚',label:'Light, easily digestible food'},
+  {icon:'🧂',label:'Low-sodium diet'},
+  {icon:'🍬',label:'Avoid sugar & sweets'},
+  {icon:'🚭',label:'No smoking / tobacco'},
+  {icon:'🍺',label:'Avoid alcohol'},
+  {icon:'🏃',label:'Light walking / gentle exercise'},
+  {icon:'🚫',label:'Avoid strenuous activity'},
+  {icon:'😴',label:'8 hours sleep daily'},
+  {icon:'🥗',label:'High-fibre diet'},
+  {icon:'🧘',label:'Stress management / relaxation'},
+];
+
+let selectedTests = new Set();
+let customTests = [];
+let selectedAdvice = new Set();
+let rxRows = [];
+let diagnoses = [];
+
+function renderTests(){
+  const grid=document.getElementById('tests-grid');
+  if(!grid) return;
+  grid.innerHTML='';
+  [...COMMON_TESTS,...customTests].forEach(test=>{
+    const chip=document.createElement('div');
+    chip.className='test-chip'+(selectedTests.has(test)?' selected':'');
+    chip.innerHTML=`<svg width="11" height="11" viewBox="0 0 24 24" fill="none"><polyline points="20 6 9 17 4 12" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"/></svg>${test}`;
+    chip.onclick=()=>{ selectedTests.has(test)?selectedTests.delete(test):selectedTests.add(test); renderTests(); };
+    grid.appendChild(chip);
+  });
+}
+function addCustomTest(){
+  const inp=document.getElementById('test-custom-input');
+  const v=inp.value.trim(); if(!v) return;
+  customTests.push(v); selectedTests.add(v); inp.value=''; renderTests();
+}
+
+function renderAdvice(){
+  const grid=document.getElementById('advice-grid');
+  if(!grid) return;
+  grid.innerHTML='';
+  ADVICE_OPTIONS.forEach(opt=>{
+    const chip=document.createElement('div');
+    chip.className='advice-chip'+(selectedAdvice.has(opt.label)?' selected':'');
+    chip.innerHTML=`<span style="font-size:1rem">${opt.icon}</span>${opt.label}`;
+    chip.onclick=()=>{ selectedAdvice.has(opt.label)?selectedAdvice.delete(opt.label):selectedAdvice.add(opt.label); renderAdvice(); };
+    grid.appendChild(chip);
+  });
+}
+
+function addRxRow(med='',dose='',freq=''){
+  const id=Date.now()+Math.floor(Math.random()*1000);
+  rxRows.push({id,med,dose,freq});
+  renderRxList();
+  setTimeout(()=>{ const inp=document.querySelector(`#rx-row-${id} .rx-med`); if(inp) inp.focus(); },50);
+}
+function removeRxRow(id){ rxRows=rxRows.filter(r=>r.id!==id); renderRxList(); }
+function updateRx(id,field,value){ const r=rxRows.find(r=>r.id===id); if(r) r[field]=value; }
+function renderRxList(){
+  const list=document.getElementById('rx-list');
+  if(!list) return;
+  list.innerHTML='';
+  if(rxRows.length===0){
+    list.innerHTML=`<p style="font-size:0.78rem;color:var(--gray-400)">No medicines added. Click "Add Medicine" below.</p>`;
+    return;
+  }
+  const hdr=document.createElement('div');
+  hdr.className='rx-item'; hdr.style.marginBottom='2px';
+  hdr.innerHTML=`<div class="rx-col-label">Medicine / Drug Name</div><div class="rx-col-label">Dosage</div><div class="rx-col-label">Frequency</div>`;
+  list.appendChild(hdr);
+  rxRows.forEach(row=>{
+    const div=document.createElement('div');
+    div.className='rx-item'; div.id=`rx-row-${row.id}`;
+    const freqOpts=['Once daily','Twice daily','Three times daily','Four times daily','Every 6 hours','Every 8 hours','At bedtime','Before meals','After meals','As needed','SOS'];
+    div.innerHTML=`
+      <input type="text" class="rx-input rx-med" placeholder="e.g. Paracetamol 500mg" value="${row.med}" oninput="updateRx(${row.id},'med',this.value)"/>
+      <input type="text" class="rx-input" placeholder="e.g. 1-0-1" value="${row.dose}" oninput="updateRx(${row.id},'dose',this.value)"/>
+      <div style="display:flex;gap:6px;align-items:center">
+        <select class="rx-input" style="flex:1" onchange="updateRx(${row.id},'freq',this.value)">
+          <option value="">Frequency</option>
+          ${freqOpts.map(f=>`<option${row.freq===f?' selected':''}>${f}</option>`).join('')}
+        </select>
+        <button class="rx-remove-btn" onclick="removeRxRow(${row.id})" title="Remove">
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none"><line x1="18" y1="6" x2="6" y2="18" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"/><line x1="6" y1="6" x2="18" y2="18" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"/></svg>
+        </button>
+      </div>`;
+    list.appendChild(div);
+  });
+}
+
+function addDiagnosis(){
+  const inp=document.getElementById('dx-input');
+  const v=inp.value.trim(); if(!v||diagnoses.includes(v)){ inp.value=''; return; }
+  diagnoses.push(v); inp.value=''; renderDxTags();
+}
+function removeDiagnosis(dx){ diagnoses=diagnoses.filter(d=>d!==dx); renderDxTags(); }
+function renderDxTags(){
+  const c=document.getElementById('dx-tags');
+  if(!c) return;
+  if(diagnoses.length===0){ c.innerHTML=`<span style="font-size:0.76rem;color:var(--gray-400)">No diagnosis added yet.</span>`; return; }
+  c.innerHTML=diagnoses.map(dx=>`
+    <div class="dx-tag">${dx}
+      <button onclick="removeDiagnosis(${JSON.stringify(dx)})">&#215;</button>
+    </div>`).join('');
+}
+
+function loadDoctorPage(){
+  const data=getPatientRecord();
+  const hasPatient=Boolean(data&&data.name);
+  const vitalsReady=hasCompleteVitals(data);
+  const mainContent=document.getElementById('doc-main-content');
+  const noPatient=document.getElementById('no-patient-state');
+
+  if(!hasPatient||!vitalsReady){
+    mainContent.style.display='none';
+    noPatient.classList.add('show');
+    document.getElementById('doc-breadcrumb').textContent='No active case';
+    document.getElementById('doc-sb-name').textContent='No patient loaded';
+    document.getElementById('doc-sb-token').textContent='Token Pending';
+    const badge=document.getElementById('doc-priority-badge');
+    badge.className='priority-badge';
+    document.getElementById('doc-priority-label').textContent='Awaiting Data';
+    document.getElementById('doc-sb-note').textContent=!hasPatient
+      ?'Waiting for a patient to complete registration.'
+      :'Patient registered but vitals not yet recorded.';
+    return;
+  }
+
+  noPatient.classList.remove('show');
+  mainContent.style.display='block';
+
+  document.getElementById('doc-breadcrumb').textContent=data.name;
+  document.getElementById('doc-loaded-time').textContent=formatDisplayTime((data.vitals&&data.vitals.updatedAt)||data.timestamp);
+
+  document.getElementById('doc-sb-name').textContent=data.name;
+  document.getElementById('doc-sb-token').textContent=`${formatSharedToken(data.token)} · P-2041`;
+  document.getElementById('doc-sb-bp').textContent=cleanVal(data.vitals.bp)||'--';
+  document.getElementById('doc-sb-hr').textContent=cleanVal(data.vitals.hr)||'--';
+  document.getElementById('doc-sb-temp').textContent=cleanVal(data.vitals.temp)||'--';
+  document.getElementById('doc-sb-spo2').textContent=cleanVal(data.vitals.spo2)||'--';
+  document.getElementById('doc-sb-reg').textContent=formatDisplayTime(data.timestamp);
+  document.getElementById('doc-sb-vdone').textContent=vitalsReady?'Yes ✓':'No';
+  document.getElementById('doc-sb-stage').textContent=data.workflowStage==='ready_for_doctor'?'Ready for Doctor':(data.workflowStage||'--');
+  document.getElementById('doc-sb-note').textContent='Patient cleared from vitals desk. Review and complete consultation.';
+
+  const sym=(data.symptoms||'').toLowerCase();
+  let priority='Normal', badgeClass='';
+  if(sym.includes('chest pain')||sym.includes('shortness of breath')||sym.includes('breathing')){ priority='Critical'; badgeClass='critical'; }
+  else if(sym.includes('fever')&&(sym.includes('cough')||sym.includes('rash')||sym.includes('vomit'))){ priority='Urgent'; badgeClass='urgent'; }
+  const badge=document.getElementById('doc-priority-badge');
+  badge.className=`priority-badge${badgeClass?' '+badgeClass:''}`;
+  document.getElementById('doc-priority-label').textContent=priority;
+
+  document.getElementById('strip-bp').textContent=cleanVal(data.vitals.bp)||'--';
+  document.getElementById('strip-hr').textContent=cleanVal(data.vitals.hr)||'--';
+  document.getElementById('strip-temp').textContent=cleanVal(data.vitals.temp)||'--';
+  document.getElementById('strip-spo2').textContent=cleanVal(data.vitals.spo2)||'--';
+
+  document.getElementById('doc-name').textContent=data.name||'--';
+  document.getElementById('doc-age').textContent=data.age||'--';
+  document.getElementById('doc-gender').textContent=data.gender||'--';
+  document.getElementById('doc-symptoms').textContent=data.symptoms||'--';
+  document.getElementById('doc-conditions').textContent=cleanVal(data.conditions)||'None reported';
+  document.getElementById('doc-medications').textContent=cleanVal(data.medications)||'None';
+
+  const allergies=cleanVal(data.allergies);
+  const allergyEl=document.getElementById('doc-allergies');
+  const allergyBanner=document.getElementById('allergy-banner');
+  if(allergies){
+    allergyEl.textContent=allergies;
+    allergyEl.className='info-val allergy-flag';
+    allergyBanner.classList.add('show');
+    document.getElementById('allergy-banner-text').textContent=`⚠ Known allergies: ${allergies} — verify before prescribing.`;
+  } else {
+    allergyEl.textContent='None reported';
+    allergyEl.className='info-val';
+    allergyBanner.classList.remove('show');
+  }
+
+  const tag=document.getElementById('doc-case-status-tag');
+  tag.textContent='Ready for Review';
+  tag.style.cssText='background:var(--green-100);border-color:#bbf7d0;color:var(--green-700)';
+
+  if(data.doctorOutput){
+    const out=data.doctorOutput;
+    if(out.diagnoses&&diagnoses.length===0){ diagnoses=[...out.diagnoses]; renderDxTags(); }
+    if(out.rx&&rxRows.length===0){ rxRows=out.rx.map(r=>({...r,id:Date.now()+Math.random()})); renderRxList(); }
+    if(out.tests&&selectedTests.size===0){ out.tests.forEach(t=>selectedTests.add(t)); renderTests(); }
+    if(out.advice&&selectedAdvice.size===0){ out.advice.forEach(a=>selectedAdvice.add(a)); renderAdvice(); }
+    if(out.adviceNotes) document.getElementById('advice-notes').value=out.adviceNotes;
+    if(out.fuWhen)  document.getElementById('fu-when').value=out.fuWhen;
+    if(out.fuRefer) document.getElementById('fu-refer').value=out.fuRefer;
+    if(out.fuNotes) document.getElementById('fu-notes').value=out.fuNotes;
+    if(out.closedAt){
+      const status=document.getElementById('finalize-status');
+      status.className='finalize-status ready';
+      status.innerHTML=`<svg width="14" height="14" viewBox="0 0 24 24" fill="none"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14" stroke="currentColor" stroke-width="2"/><polyline points="22 4 12 14.01 9 11.01" stroke="currentColor" stroke-width="2"/></svg>Consultation already saved.`;
+    }
+  }
+}
+
+async function runAIDiagnosis(){
+  const data=getPatientRecord();
+  if(!data.name){ showToast('No patient data available.'); return; }
+  const btn=document.getElementById('ai-gen-btn');
+  const thinking=document.getElementById('ai-thinking');
+  const output=document.getElementById('ai-diag-output');
+  const textEl=document.getElementById('ai-diag-text');
+  btn.disabled=true; thinking.style.display='flex'; output.classList.remove('visible');
+  const v=data.vitals||{};
+  const prompt=`You are a clinical AI assistant helping a doctor in a hospital consultation room. Provide a concise, structured clinical analysis.
+
+PATIENT:
+- Name: ${data.name}, Age: ${data.age}, Gender: ${data.gender}
+- Symptoms: ${data.symptoms||'Not specified'}
+- Allergies: ${data.allergies||'None'}
+- Existing Conditions: ${data.conditions||'None'}
+- Current Medications: ${data.medications||'None'}
+
+VITALS:
+- BP: ${v.bp||'Not recorded'} | HR: ${v.hr||'Not recorded'} | Temp: ${v.temp||'Not recorded'} | SpO2: ${v.spo2||'Not recorded'}
+
+Provide a structured analysis with these exact sections:
+1. POSSIBLE DIAGNOSIS — Top 2-3 differential diagnoses
+2. KEY CONCERNS — Red flags or critical observations (especially allergy interactions)
+3. SUGGESTED TESTS — 3-5 most relevant investigations
+4. TREATMENT APPROACH — General direction (no specific drug names, just approach)
+5. DIET & LIFESTYLE — 2-3 key recommendations
+
+Keep it concise and clinical. The doctor makes final decisions.`;
+
+  try {
+    const res=await fetch('https://api.anthropic.com/v1/messages',{
+      method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({model:'claude-sonnet-4-20250514',max_tokens:1000,messages:[{role:'user',content:prompt}]})
+    });
+    const result=await res.json();
+    const text=result.content&&result.content[0]&&result.content[0].text?result.content[0].text:'Unable to generate analysis. Please try again.';
+    textEl.textContent=text;
+    thinking.style.display='none'; output.classList.add('visible');
+    btn.innerHTML='<svg width="15" height="15" viewBox="0 0 24 24" fill="none"><path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg> &#8635; Regenerate Analysis';
+    btn.disabled=false;
+  } catch(err){
+    thinking.style.display='none';
+    textEl.textContent='Error connecting to AI. Check your connection and try again.';
+    output.classList.add('visible'); btn.disabled=false;
+  }
+}
+
+function finalizeCase(){
+  if(diagnoses.length===0){
+    showToast('Please add at least one diagnosis before finalizing.');
+    document.getElementById('dx-input').focus(); return;
+  }
+  const rxData=rxRows.map(row=>{
+    const rowEl=document.getElementById(`rx-row-${row.id}`);
+    if(!rowEl) return row;
+    const inputs=rowEl.querySelectorAll('input,select');
+    return {id:row.id, med:inputs[0]?inputs[0].value:row.med, dose:inputs[1]?inputs[1].value:row.dose, freq:inputs[2]?inputs[2].value:row.freq};
+  });
+  const data=getPatientRecord();
+  data.doctorOutput={
+    diagnoses:[...diagnoses],
+    rx:rxData,
+    tests:Array.from(selectedTests),
+    advice:Array.from(selectedAdvice),
+    adviceNotes:document.getElementById('advice-notes').value,
+    fuWhen:document.getElementById('fu-when').value,
+    fuRefer:document.getElementById('fu-refer').value,
+    fuNotes:document.getElementById('fu-notes').value,
+    closedAt:new Date().toISOString(),
+  };
+  data.workflowStage='consultation_complete';
+  setPatientRecord(data);
+  const status=document.getElementById('finalize-status');
+  status.className='finalize-status ready';
+  status.innerHTML=`<svg width="14" height="14" viewBox="0 0 24 24" fill="none"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14" stroke="currentColor" stroke-width="2"/><polyline points="22 4 12 14.01 9 11.01" stroke="currentColor" stroke-width="2"/></svg>Consultation complete — case saved successfully.`;
+  showToast('Case finalized and prescription saved.');
+}
+
+renderTests(); renderAdvice(); renderRxList(); loadDoctorPage();
+window.addEventListener('storage',e=>{ if(e.key===patientRecordKey) loadDoctorPage(); });
+window.addEventListener('focus', loadDoctorPage);
+document.addEventListener('visibilitychange',()=>{ if(!document.hidden) loadDoctorPage(); });
+</script>
+</body>
+</html>

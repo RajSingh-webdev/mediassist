@@ -1,0 +1,266 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>MediAI - Vitals Desk</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600&family=Instrument+Serif:ital,wght@0,600;1,400&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="style.css"/>
+</head>
+<body class="vitals-body">
+
+  <header class="staff-topbar">
+    <div class="tb-left">
+      <div class="staff-brand">
+        <div class="brand-icon brand-icon-blue">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none">
+            <rect x="3" y="3" width="18" height="18" rx="4" fill="#fff"/>
+            <path d="M12 7v10M7 12h10" stroke="#1a56db" stroke-width="2.5" stroke-linecap="round"/>
+          </svg>
+        </div>
+        <span class="brand-name">MediAI</span>
+        <span class="brand-tag">Vitals Desk</span>
+      </div>
+      <nav class="staff-nav">
+        <a href="staff.html" class="snav">Registration</a>
+        <a href="vitals.html" class="snav active">Vitals</a>
+      </nav>
+    </div>
+    <div class="tb-right">
+      <div class="ai-status"><span class="ai-dot"></span>Handoff Live</div>
+      <div class="staff-time" id="staff-clock"></div>
+    </div>
+  </header>
+
+  <div class="staff-shell">
+
+    <aside class="staff-sidebar vitals-sidebar">
+      <div class="sb-section">
+        <p class="sb-heading">CURRENT CASE</p>
+        <div class="sb-patient-card">
+          <img src="https://img.freepik.com/premium-vector/default-avatar-profile-icon-social-media-user-image-gray-avatar-icon-blank-profile-silhouette-vector-illustration_561158-3407.jpg?semt=ais_rp_progressive&w=740&q=80" alt="Patient"/>
+          <div>
+            <p class="sb-pname" id="vt-side-name">No active patient</p>
+            <p class="sb-pid" id="vt-side-token">Token Pending - P-2041</p>
+          </div>
+        </div>
+        <div class="priority-badge" id="vt-status-badge">
+          <span class="pb-dot"></span>
+          <span id="vt-status-label">Awaiting Registration</span>
+        </div>
+      </div>
+
+      <div class="sb-section">
+        <p class="sb-heading">REGISTRATION</p>
+        <div class="sb-vital"><span>Age</span><span class="sv-val" id="vt-side-age">--</span></div>
+        <div class="sb-vital"><span>Gender</span><span class="sv-val" id="vt-side-gender">--</span></div>
+        <div class="sb-vital"><span>Submitted</span><span class="sv-val" id="vt-side-submitted">--</span></div>
+        <div class="sb-vital"><span>Token</span><span class="sv-val" id="vt-side-token-text">Pending</span></div>
+      </div>
+
+      <div class="sb-section">
+        <p class="sb-heading">LATEST VITALS</p>
+        <div class="sb-vital"><span>Blood Pressure</span><span class="sv-val" id="vt-side-bp">--</span></div>
+        <div class="sb-vital"><span>Heart Rate</span><span class="sv-val" id="vt-side-hr">--</span></div>
+        <div class="sb-vital"><span>Temperature</span><span class="sv-val" id="vt-side-temp">--</span></div>
+        <div class="sb-vital"><span>SpO2</span><span class="sv-val" id="vt-side-spo2">--</span></div>
+      </div>
+
+      <div class="sb-note-box" id="vt-side-note">
+        Registration staff must assign a token before vitals can be recorded.
+      </div>
+
+      <a href="staff.html" class="sb-link-btn">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none"><path d="M15 3H5a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V9l-6-6z" stroke="currentColor" stroke-width="2"/><polyline points="15 3 15 9 21 9" stroke="currentColor" stroke-width="2"/></svg>
+        Open Registration Panel
+      </a>
+    </aside>
+
+    <main class="staff-content vitals-content">
+      <div class="sc-header">
+        <div>
+          <div class="sc-breadcrumb">Vitals Desk <span>/</span> Intake <span>/</span> <b id="vt-breadcrumb-name">No active case</b></div>
+          <h1 class="sc-title">Vitals <em>Capture</em></h1>
+        </div>
+        <div class="sc-header-right">
+          <div class="timestamp-box">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="10" stroke="currentColor" stroke-width="1.8"/><polyline points="12 6 12 12 16 14" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>
+            Last sync: <span id="vt-last-sync">--</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="ai-alert-banner ai-alert-blue" id="vt-banner">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z" stroke="currentColor" stroke-width="2"/><line x1="12" y1="9" x2="12" y2="13" stroke="currentColor" stroke-width="2"/><line x1="12" y1="17" x2="12.01" y2="17" stroke="currentColor" stroke-width="2.5"/></svg>
+        <span id="vt-banner-text">Use the registration token to confirm the patient before capturing vitals.</span>
+      </div>
+
+      <div class="s-card s-card-full">
+        <div class="s-card-header">
+          <div>
+            <h2 class="s-card-title">Patient Lookup</h2>
+            <p class="s-card-sub">Load the registered patient using the issued token</p>
+          </div>
+          <span class="ai-tag" id="vt-ready-tag">Waiting</span>
+        </div>
+        <div class="s-divider"></div>
+        <div class="vitals-lookup-body">
+          <div class="vitals-token-row">
+            <div class="s-field-group">
+              <label class="s-flabel">Registration Token</label>
+              <input type="text" class="s-finput" id="vt-token-input" placeholder="e.g. #042"/>
+            </div>
+            <button class="s-btn s-btn-edit" type="button" onclick="useCurrentVitalsToken()">Use Current Token</button>
+            <button class="s-btn s-btn-save" type="button" id="vt-load-btn" onclick="loadVitalsPatientByToken()">Load Patient</button>
+          </div>
+          <p class="vitals-helper" id="vt-lookup-helper">Waiting for a registered patient token from the registration desk.</p>
+        </div>
+      </div>
+
+      <div class="staff-grid">
+        <div class="s-card">
+          <div class="s-card-header">
+            <div>
+              <h2 class="s-card-title">Patient Summary</h2>
+              <p class="s-card-sub">Read-only details from the registration desk</p>
+            </div>
+          </div>
+          <div class="s-divider"></div>
+          <div class="s-fields vitals-summary-grid">
+            <div class="s-field-group">
+              <label class="s-flabel">Full Name</label>
+              <input type="text" class="s-finput" id="vt-name" value="" disabled/>
+            </div>
+            <div class="s-field-group">
+              <label class="s-flabel">Age</label>
+              <input type="text" class="s-finput" id="vt-age" value="" disabled/>
+            </div>
+            <div class="s-field-group">
+              <label class="s-flabel">Gender</label>
+              <input type="text" class="s-finput" id="vt-gender" value="" disabled/>
+            </div>
+            <div class="s-field-group">
+              <label class="s-flabel">Token</label>
+              <input type="text" class="s-finput" id="vt-token-display" value="" disabled/>
+            </div>
+            <div class="s-field-group">
+              <label class="s-flabel">Allergies</label>
+              <input type="text" class="s-finput" id="vt-allergies" value="" disabled/>
+            </div>
+            <div class="s-field-group">
+              <label class="s-flabel">Conditions</label>
+              <input type="text" class="s-finput" id="vt-conditions" value="" disabled/>
+            </div>
+            <div class="s-field-group s-field-full">
+              <label class="s-flabel">Symptoms</label>
+              <textarea class="s-finput s-ftextarea" id="vt-symptoms" disabled></textarea>
+            </div>
+            <div class="s-field-group s-field-full">
+              <label class="s-flabel">Current Medications</label>
+              <input type="text" class="s-finput" id="vt-medications" value="" disabled/>
+            </div>
+          </div>
+        </div>
+
+        <div class="s-card">
+          <div class="s-card-header">
+            <div>
+              <h2 class="s-card-title">Workflow Status</h2>
+              <p class="s-card-sub">Track the handoff from registration to doctor review</p>
+            </div>
+          </div>
+          <div class="s-divider"></div>
+          <div class="vitals-steps">
+            <div class="vitals-step" id="vt-step-registration">
+              <div class="vitals-step-icon">1</div>
+              <div>
+                <p class="vitals-step-title">Registration complete</p>
+                <p class="vitals-step-text">Patient details are verified and token is assigned.</p>
+              </div>
+            </div>
+            <div class="vitals-step" id="vt-step-capture">
+              <div class="vitals-step-icon">2</div>
+              <div>
+                <p class="vitals-step-title">Capture vitals</p>
+                <p class="vitals-step-text">Record BP, heart rate, temperature, and SpO2.</p>
+              </div>
+            </div>
+            <div class="vitals-step" id="vt-step-ready">
+              <div class="vitals-step-icon">3</div>
+              <div>
+                <p class="vitals-step-title">Ready for doctor</p>
+                <p class="vitals-step-text">Doctor handoff can happen after vitals are saved.</p>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="s-card s-card-full">
+          <div class="s-card-header">
+            <div>
+              <h2 class="s-card-title">Vitals Entry</h2>
+              <p class="s-card-sub">Capture measurements after confirming the patient token</p>
+            </div>
+            <button class="s-btn s-btn-save" type="button" id="vt-save-btn" onclick="saveVitalsRecord()" disabled>
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z" stroke="currentColor" stroke-width="2"/><polyline points="17 21 17 13 7 13 7 21" stroke="currentColor" stroke-width="2"/><polyline points="7 3 7 8 15 8" stroke="currentColor" stroke-width="2"/></svg>
+              Save Vitals
+            </button>
+          </div>
+          <div class="s-divider"></div>
+          <div class="vitals-grid vitals-entry-grid">
+            <div class="vital-card">
+              <div class="vc-icon vc-icon-red">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z" stroke="currentColor" stroke-width="2"/></svg>
+              </div>
+              <div>
+                <p class="vc-label">Blood Pressure</p>
+                <input type="text" class="vc-input" id="vt-bp" placeholder="e.g. 120/80 mmHg" disabled/>
+              </div>
+            </div>
+            <div class="vital-card">
+              <div class="vc-icon vc-icon-blue">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+              </div>
+              <div>
+                <p class="vc-label">Heart Rate</p>
+                <input type="text" class="vc-input" id="vt-hr" placeholder="e.g. 78 bpm" disabled/>
+              </div>
+            </div>
+            <div class="vital-card">
+              <div class="vc-icon vc-icon-amber">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none"><path d="M14 14.76V3.5a2.5 2.5 0 0 0-5 0v11.26a4.5 4.5 0 1 0 5 0z" stroke="currentColor" stroke-width="2"/></svg>
+              </div>
+              <div>
+                <p class="vc-label">Temperature</p>
+                <input type="text" class="vc-input" id="vt-temp" placeholder="e.g. 98.6 F" disabled/>
+              </div>
+            </div>
+            <div class="vital-card">
+              <div class="vc-icon vc-icon-green">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="10" stroke="currentColor" stroke-width="2"/><path d="M12 8v4M12 16h.01" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+              </div>
+              <div>
+                <p class="vc-label">SpO2</p>
+                <input type="text" class="vc-input" id="vt-spo2" placeholder="e.g. 98%" disabled/>
+              </div>
+            </div>
+          </div>
+          <div class="vitals-footer">
+            <p class="vitals-helper">All four measurements should be confirmed before handing the case to the doctor.</p>
+            <p class="vitals-saved" id="vt-saved-at">No vitals saved yet.</p>
+          </div>
+        </div>
+      </div>
+
+      <div class="s-toast" id="s-toast">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14" stroke="currentColor" stroke-width="2"/><polyline points="22 4 12 14.01 9 11.01" stroke="currentColor" stroke-width="2"/></svg>
+        <span id="s-toast-msg">Vitals saved successfully.</span>
+      </div>
+    </main>
+  </div>
+
+  <script src="script.js"></script>
+</body>
+</html>

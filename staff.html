@@ -107,7 +107,6 @@
 
       <div class="staff-grid">
 
-        <!-- Patient Info -->
         <div class="s-card s-card-full">
           <div class="s-card-header">
             <div>
@@ -153,61 +152,40 @@
             </div>
             <div class="s-field-group">
               <label class="s-flabel">Known Allergies</label>
-              <input type="text" class="s-finput s-finput-warn" id="s-allergies" value="Penicillin, NSAIDs" disabled/>
+              <input type="text" class="s-finput s-finput-warn" id="s-allergies" placeholder="e.g. Penicillin, NSAIDs" disabled/>
             </div>
             <div class="s-field-group">
               <label class="s-flabel">Existing Conditions</label>
-              <input type="text" class="s-finput" id="s-conditions" value="Hypertension, Type 2 Diabetes" disabled/>
+              <input type="text" class="s-finput" id="s-conditions" placeholder="e.g. Diabetes, Hypertension" disabled/>
             </div>
             <div class="s-field-group s-field-full">
               <label class="s-flabel">Current Medications</label>
-              <input type="text" class="s-finput" id="s-medications" value="Metformin 500mg, Amlodipine 5mg, Atorvastatin 10mg" disabled/>
+              <input type="text" class="s-finput" id="s-medications" placeholder="e.g. Metformin 500mg, Atorvastatin 10mg" disabled/>
             </div>
           </div>
         </div>
 
-        <!-- Vitals -->
         <div class="s-card">
           <div class="s-card-header">
             <div>
-              <h2 class="s-card-title">Vitals</h2>
-              <p class="s-card-sub">Entered by nursing staff</p>
+              <h2 class="s-card-title">Staff Notes</h2>
+              <p class="s-card-sub">Internal notes — not visible to patient</p>
             </div>
-            <button class="s-btn s-btn-edit" id="btn-vitals-edit" onclick="toggleVitalsEdit()">
-              <svg width="13" height="13" viewBox="0 0 24 24" fill="none"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" stroke="currentColor" stroke-width="2"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" stroke="currentColor" stroke-width="2"/></svg>
-              Edit
+            <button class="s-btn s-btn-save" onclick="saveNotes()">
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z" stroke="currentColor" stroke-width="2"/><polyline points="17 21 17 13 7 13 7 21" stroke="currentColor" stroke-width="2"/><polyline points="7 3 7 8 15 8" stroke="currentColor" stroke-width="2"/></svg>
+              Save Notes
             </button>
           </div>
           <div class="s-divider"></div>
-          <div class="vitals-grid">
-            <div class="vital-card">
-              <div class="vc-icon vc-icon-red">
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z" stroke="currentColor" stroke-width="2"/></svg>
-              </div>
-              <div><p class="vc-label">Blood Pressure</p><input type="text" class="vc-input" id="v-bp" value="128/84 mmHg" disabled/></div>
-            </div>
-            <div class="vital-card">
-              <div class="vc-icon vc-icon-blue">
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
-              </div>
-              <div><p class="vc-label">Heart Rate</p><input type="text" class="vc-input" id="v-hr" value="88 bpm" disabled/></div>
-            </div>
-            <div class="vital-card">
-              <div class="vc-icon vc-icon-amber">
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none"><path d="M14 14.76V3.5a2.5 2.5 0 0 0-5 0v11.26a4.5 4.5 0 1 0 5 0z" stroke="currentColor" stroke-width="2"/></svg>
-              </div>
-              <div><p class="vc-label">Temperature</p><input type="text" class="vc-input" id="v-temp" value="38.2 °C" disabled/></div>
-            </div>
-            <div class="vital-card">
-              <div class="vc-icon vc-icon-green">
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="10" stroke="currentColor" stroke-width="2"/><path d="M12 8v4M12 16h.01" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
-              </div>
-              <div><p class="vc-label">SpO₂</p><input type="text" class="vc-input" id="v-spo2" value="98 %" disabled/></div>
+          <div class="notes-body">
+            <textarea class="notes-textarea" id="staff-notes" placeholder="Add clinical observations, treatment plan, follow-up instructions..."></textarea>
+            <div class="notes-footer">
+              <span class="notes-author">Dr. Sarah Chen · Ward 4B</span>
+              <span class="notes-saved" id="notes-saved"></span>
             </div>
           </div>
         </div>
 
-        <!-- AI Analysis -->
         <div class="s-card">
           <div class="s-card-header">
             <div>
@@ -233,28 +211,6 @@
                 Symptom Insight
               </div>
               <p class="aib-text" id="ai-insight-text">Analysing symptoms...</p>
-            </div>
-          </div>
-        </div>
-
-        <!-- Staff Notes -->
-        <div class="s-card s-card-full">
-          <div class="s-card-header">
-            <div>
-              <h2 class="s-card-title">Staff Notes</h2>
-              <p class="s-card-sub">Internal notes — not visible to patient</p>
-            </div>
-            <button class="s-btn s-btn-save" onclick="saveNotes()">
-              <svg width="13" height="13" viewBox="0 0 24 24" fill="none"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z" stroke="currentColor" stroke-width="2"/><polyline points="17 21 17 13 7 13 7 21" stroke="currentColor" stroke-width="2"/><polyline points="7 3 7 8 15 8" stroke="currentColor" stroke-width="2"/></svg>
-              Save Notes
-            </button>
-          </div>
-          <div class="s-divider"></div>
-          <div class="notes-body">
-            <textarea class="notes-textarea" id="staff-notes" placeholder="Add clinical observations, treatment plan, follow-up instructions..."></textarea>
-            <div class="notes-footer">
-              <span class="notes-author">Dr. Sarah Chen · Ward 4B</span>
-              <span class="notes-saved" id="notes-saved"></span>
             </div>
           </div>
         </div>

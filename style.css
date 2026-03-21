@@ -467,7 +467,7 @@ input, textarea, select { font-family: var(--font); }
 
 .vitals-token-row {
   display: grid;
-  grid-template-columns: minmax(220px, 1fr) auto auto;
+  grid-template-columns: minmax(220px, 1fr) auto;
   gap: 12px;
   align-items: end;
 }

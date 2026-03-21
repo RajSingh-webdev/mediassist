@@ -47,6 +47,14 @@ function formatDisplayTime(value) {
   );
 }
 
+function getStoredStaffNotes(data = null) {
+  const record = data || getPatientRecord();
+  const recordNotes = cleanFieldValue(record && record.staffNotes);
+  if (recordNotes) return recordNotes;
+  if (record && Object.keys(record).length > 0) return '';
+  return cleanFieldValue(localStorage.getItem('mediAI_notes'));
+}
+
 /* Live Clock */
 function updateClock() {
   const now = new Date();
@@ -158,40 +166,83 @@ if (isPatientPage) {
     return null;
   }
 
+  function cleanPlaceholderSample(value) {
+    return String(value || '')
+      .trim()
+      .replace(/^e\.g\.\s*/i, '')
+      .replace(/\.\.\.$/, '')
+      .trim();
+  }
+
+  function getPatientFieldValue(id, usePlaceholderFallback = false) {
+    const el = document.getElementById(id);
+    if (!el) return '';
+
+    const value = String(el.value || '').trim();
+    if (value) return value;
+    if (!usePlaceholderFallback) return '';
+
+    return cleanPlaceholderSample(el.getAttribute('placeholder'));
+  }
+
+  function buildPatientSubmissionData() {
+    return {
+      name:        getPatientFieldValue('p-name', true),
+      age:         getPatientFieldValue('p-age', true),
+      gender:      document.getElementById('p-gender').value,
+      symptoms:    getPatientFieldValue('p-symptoms', true),
+      allergies:   getPatientFieldValue('p-allergies'),
+      conditions:  getPatientFieldValue('p-conditions'),
+      medications: getPatientFieldValue('p-medications')
+    };
+  }
+
+  function hydratePatientFormDefaults(data) {
+    const fieldValues = {
+      'p-name': data.name,
+      'p-age': data.age,
+      'p-symptoms': data.symptoms
+    };
+
+    Object.entries(fieldValues).forEach(([id, value]) => {
+      const el = document.getElementById(id);
+      if (el && !String(el.value || '').trim()) {
+        el.value = value;
+      }
+    });
+
+    const genderEl = document.getElementById('p-gender');
+    if (genderEl && !genderEl.value) {
+      genderEl.value = data.gender;
+    }
+  }
+
   function submitPatientForm() {
-    const name     = document.getElementById('p-name').value.trim();
-    const age      = document.getElementById('p-age').value.trim();
-    const gender   = document.getElementById('p-gender').value;
-    const symptoms = document.getElementById('p-symptoms').value.trim();
+    const data     = buildPatientSubmissionData();
     const alertEl  = document.getElementById('p-alert');
+    hydratePatientFormDefaults(data);
 
-    if (!name)    { showFieldError('p-name',    'Please enter your full name.');    return; }
-    if (!age)     { showFieldError('p-age',     'Please enter your age.');          return; }
-    if (!gender)  { showFieldError('p-gender',  'Please select your gender.');      return; }
-    if (!symptoms){ showFieldError('p-symptoms','Please describe your symptoms.');  return; }
+    if (!data.name)     { showFieldError('p-name',     'Please enter your full name.');    return; }
+    if (!data.age)      { showFieldError('p-age',      'Please enter your age.');          return; }
+    if (!data.gender)   { showFieldError('p-gender',   'Please select your gender.');      return; }
+    if (!data.symptoms) { showFieldError('p-symptoms', 'Please describe your symptoms.');  return; }
 
-    const analysis = analyseSymptoms(symptoms);
+    const analysis = analyseSymptoms(data.symptoms);
     if (analysis) {
       alertEl.className     = `p-alert p-alert-${analysis.type}`;
       alertEl.innerHTML     = analysis.msg;
       alertEl.style.display = 'flex';
-      setTimeout(() => doSubmit(), 2000);
+      setTimeout(() => doSubmit(data), 2000);
       return;
     }
     alertEl.style.display = 'none';
-    doSubmit();
+    doSubmit(data);
   }
 
-  function doSubmit() {
+  function doSubmit(preparedData) {
     const data = {
-      name:        document.getElementById('p-name').value.trim(),
-      age:         document.getElementById('p-age').value.trim(),
-      gender:      document.getElementById('p-gender').value,
-      symptoms:    document.getElementById('p-symptoms').value.trim(),
-      allergies:   document.getElementById('p-allergies').value.trim(),
-      conditions:  document.getElementById('p-conditions').value.trim(),
-      medications: document.getElementById('p-medications').value.trim(),
-      timestamp:   new Date().toISOString(),
+      ...(preparedData || buildPatientSubmissionData()),
+      timestamp: new Date().toISOString(),
       workflowStage: 'submitted'
     };
     localStorage.setItem('mediAI_patient', JSON.stringify(data));
@@ -302,6 +353,8 @@ if (isStaffPage) {
   function loadPatientData() {
     const raw = localStorage.getItem('mediAI_patient');
     if (!raw) {
+      const notesEl = document.getElementById('staff-notes');
+      if (notesEl) notesEl.value = '';
       setVitalsDisplay();
       syncSaveButtonState();
       return;
@@ -315,6 +368,9 @@ if (isStaffPage) {
       if (d.allergies)   setVal('s-allergies',   d.allergies);
       if (d.conditions)  setVal('s-conditions',  d.conditions);
       if (d.medications) setVal('s-medications', d.medications);
+      if (document.getElementById('staff-notes')) {
+        document.getElementById('staff-notes').value = getStoredStaffNotes(d);
+      }
       updateTokenDisplay(d.token);
       setVitalsDisplay(d.vitals);
       if (d.timestamp) {
@@ -496,6 +552,12 @@ if (isStaffPage) {
   function saveNotes() {
     const notes = document.getElementById('staff-notes').value.trim();
     localStorage.setItem('mediAI_notes', notes);
+    const patientData = getPatientRecord();
+    if (patientData && Object.keys(patientData).length > 0) {
+      if (notes) patientData.staffNotes = notes;
+      else delete patientData.staffNotes;
+      setPatientRecord(patientData);
+    }
     const el = document.getElementById('notes-saved');
     el.textContent = 'Saved at ' + new Date().toLocaleTimeString('en-IN',{hour:'2-digit',minute:'2-digit',hour12:true});
     showToast('Staff notes saved.');
@@ -526,7 +588,7 @@ if (isStaffPage) {
   updateTokenDisplay();
   loadPatientData();
 
-  const savedNotes = localStorage.getItem('mediAI_notes');
+  const savedNotes = getStoredStaffNotes();
   if (savedNotes && document.getElementById('staff-notes')) {
     document.getElementById('staff-notes').value = savedNotes;
   }
@@ -552,7 +614,8 @@ if (isVitalsPage) {
   }
 
   function normalizeTokenInput(value) {
-    return String(value || '').replace(/[^0-9]/g, '');
+    const digits = String(value || '').replace(/[^0-9]/g, '');
+    return digits ? String(Number(digits)) : '';
   }
 
   function setVitalsInputsEnabled(enabled) {
@@ -636,6 +699,7 @@ if (isVitalsPage) {
     const hasRegistration = Boolean(data && data.name);
     const hasToken = Boolean(data && data.token);
     const vitalsDone = hasCompleteVitals(data);
+    const patientUnlocked = Boolean(hasRegistration && hasToken && vitalsTokenConfirmed);
     const formattedToken = formatSharedToken(data.token);
     const tokenInput = document.getElementById('vt-token-input');
     const lookupHelper = document.getElementById('vt-lookup-helper');
@@ -643,43 +707,44 @@ if (isVitalsPage) {
     const savedAt = document.getElementById('vt-saved-at');
     const lastSync = document.getElementById('vt-last-sync');
 
-    document.getElementById('vt-side-name').textContent = hasRegistration ? data.name : 'No active patient';
-    document.getElementById('vt-side-token').textContent = hasToken ? `${formattedToken} - P-2041` : 'Token Pending - P-2041';
-    setVitalsPageText('vt-side-age', hasRegistration ? data.age : '');
-    setVitalsPageText('vt-side-gender', hasRegistration ? data.gender : '');
-    setVitalsPageText('vt-side-submitted', hasRegistration ? formatDisplayTime(data.timestamp) : '');
-    setVitalsPageText('vt-side-token-text', hasToken ? formattedToken : 'Pending', 'Pending');
-    setVitalsPageText('vt-side-bp', data.vitals && data.vitals.bp);
-    setVitalsPageText('vt-side-hr', data.vitals && data.vitals.hr);
-    setVitalsPageText('vt-side-temp', data.vitals && data.vitals.temp);
-    setVitalsPageText('vt-side-spo2', data.vitals && data.vitals.spo2);
+    document.getElementById('vt-side-name').textContent = patientUnlocked ? data.name : 'No active patient';
+    document.getElementById('vt-side-token').textContent = patientUnlocked
+      ? `${formattedToken} - P-2041`
+      : (hasToken ? 'Token Locked' : 'Token Pending - P-2041');
+    setVitalsPageText('vt-side-age', patientUnlocked ? data.age : '');
+    setVitalsPageText('vt-side-gender', patientUnlocked ? data.gender : '');
+    setVitalsPageText('vt-side-submitted', patientUnlocked ? formatDisplayTime(data.timestamp) : '');
+    setVitalsPageText('vt-side-token-text', patientUnlocked ? formattedToken : (hasToken ? 'Locked' : 'Pending'), hasToken ? 'Locked' : 'Pending');
+    setVitalsPageText('vt-side-bp', patientUnlocked ? data.vitals && data.vitals.bp : '');
+    setVitalsPageText('vt-side-hr', patientUnlocked ? data.vitals && data.vitals.hr : '');
+    setVitalsPageText('vt-side-temp', patientUnlocked ? data.vitals && data.vitals.temp : '');
+    setVitalsPageText('vt-side-spo2', patientUnlocked ? data.vitals && data.vitals.spo2 : '');
 
-    document.getElementById('vt-breadcrumb-name').textContent = hasRegistration ? data.name : 'No active case';
-    setVitalsPageField('vt-name', hasRegistration ? data.name : '');
-    setVitalsPageField('vt-age', hasRegistration ? data.age : '');
-    setVitalsPageField('vt-gender', hasRegistration ? data.gender : '');
-    setVitalsPageField('vt-token-display', hasToken ? formattedToken : '');
-    setVitalsPageField('vt-allergies', hasRegistration ? data.allergies : '');
-    setVitalsPageField('vt-conditions', hasRegistration ? data.conditions : '');
-    setVitalsPageField('vt-symptoms', hasRegistration ? data.symptoms : '');
-    setVitalsPageField('vt-medications', hasRegistration ? data.medications : '');
-    setVitalsPageField('vt-bp', data.vitals && data.vitals.bp);
-    setVitalsPageField('vt-hr', data.vitals && data.vitals.hr);
-    setVitalsPageField('vt-temp', data.vitals && data.vitals.temp);
-    setVitalsPageField('vt-spo2', data.vitals && data.vitals.spo2);
-
-    if (tokenInput && hasToken && !tokenInput.value.trim()) {
-      tokenInput.value = formattedToken;
-    }
+    document.getElementById('vt-breadcrumb-name').textContent = patientUnlocked ? data.name : 'No active case';
+    setVitalsPageField('vt-name', patientUnlocked ? data.name : '');
+    setVitalsPageField('vt-age', patientUnlocked ? data.age : '');
+    setVitalsPageField('vt-gender', patientUnlocked ? data.gender : '');
+    setVitalsPageField('vt-token-display', patientUnlocked ? formattedToken : '');
+    setVitalsPageField('vt-allergies', patientUnlocked ? data.allergies : '');
+    setVitalsPageField('vt-conditions', patientUnlocked ? data.conditions : '');
+    setVitalsPageField('vt-symptoms', patientUnlocked ? data.symptoms : '');
+    setVitalsPageField('vt-medications', patientUnlocked ? data.medications : '');
+    setVitalsPageField('vt-staff-notes', patientUnlocked ? getStoredStaffNotes(data) : '');
+    setVitalsPageField('vt-bp', patientUnlocked ? data.vitals && data.vitals.bp : '');
+    setVitalsPageField('vt-hr', patientUnlocked ? data.vitals && data.vitals.hr : '');
+    setVitalsPageField('vt-temp', patientUnlocked ? data.vitals && data.vitals.temp : '');
+    setVitalsPageField('vt-spo2', patientUnlocked ? data.vitals && data.vitals.spo2 : '');
 
     if (savedAt) {
-      savedAt.textContent = vitalsDone
+      savedAt.textContent = patientUnlocked && vitalsDone
         ? `Vitals saved ${formatDisplayTime(data.vitals.updatedAt)}`
-        : 'No vitals saved yet.';
+        : (hasToken ? 'Load the patient by token to view or edit vitals.' : 'No vitals saved yet.');
     }
 
     if (lastSync) {
-      lastSync.textContent = formatDisplayTime((data.vitals && data.vitals.updatedAt) || data.timestamp);
+      lastSync.textContent = patientUnlocked
+        ? formatDisplayTime((data.vitals && data.vitals.updatedAt) || data.timestamp)
+        : '--';
     }
 
     if (!hasRegistration) {
@@ -696,52 +761,39 @@ if (isVitalsPage) {
       updateBanner('Registration data is available, but a token must be generated before vitals can be recorded.', 'amber');
       if (lookupHelper) lookupHelper.textContent = 'Go back to the registration panel and save the record to generate the token.';
       if (sideNote) sideNote.textContent = 'The patient is registered, but the token is still pending from the registration desk.';
+    } else if (!vitalsTokenConfirmed) {
+      updateStatusBadge('Token Required', 'waiting');
+      updateReadyTag('waiting', 'Locked');
+      updateBanner('Enter the issued registration token to load this patient in the vitals panel.', 'amber');
+      if (lookupHelper) lookupHelper.textContent = 'Patient details stay hidden until the correct token is entered here.';
+      if (sideNote) sideNote.textContent = 'This panel stays locked until the patient token is confirmed manually.';
     } else if (vitalsDone) {
       updateStatusBadge('Ready for Doctor', 'complete');
       updateReadyTag('complete', 'Complete');
       updateBanner('Vitals are captured. This case is ready for doctor review.', 'blue');
       if (lookupHelper) {
-        lookupHelper.textContent = vitalsTokenConfirmed
-          ? 'Token confirmed. You can review or update the saved vitals if needed.'
-          : 'Token already exists for this patient. Confirm it here to review or update the vitals.';
+        lookupHelper.textContent = 'Token confirmed. You can review or update the saved vitals if needed.';
       }
       if (sideNote) sideNote.textContent = 'Vitals are complete. The doctor handoff can happen from this point.';
     } else {
       updateStatusBadge('Ready for Vitals', 'ready');
       updateReadyTag('ready', 'Ready');
-      updateBanner(
-        vitalsTokenConfirmed
-          ? 'Token confirmed. Capture all four vitals and save the record.'
-          : 'Token is available. Confirm it here before entering vitals.',
-        'blue'
-      );
+      updateBanner('Token confirmed. Capture all four vitals and save the record.', 'blue');
       if (lookupHelper) {
-        lookupHelper.textContent = vitalsTokenConfirmed
-          ? 'Vitals entry is unlocked for this patient.'
-          : 'Enter or confirm the issued registration token to unlock vitals entry.';
+        lookupHelper.textContent = 'Vitals entry is unlocked for this patient.';
       }
       if (sideNote) sideNote.textContent = 'Vitals desk can continue as soon as the registration token is confirmed.';
     }
 
-    updateWorkflowSteps(data);
-    setVitalsInputsEnabled(Boolean(hasRegistration && hasToken && vitalsTokenConfirmed));
-  }
-
-  function useCurrentVitalsToken() {
-    const data = getPatientRecord();
-    const tokenInput = document.getElementById('vt-token-input');
-    if (!data.token) {
-      showVitalsToast('No registered token is available yet.');
-      return;
-    }
-    if (tokenInput) tokenInput.value = formatSharedToken(data.token);
-    loadVitalsPatientByToken();
+    updateWorkflowSteps(patientUnlocked ? data : {});
+    setVitalsInputsEnabled(patientUnlocked);
   }
 
   function loadVitalsPatientByToken() {
     const data = getPatientRecord();
     const tokenInput = document.getElementById('vt-token-input');
     const enteredToken = normalizeTokenInput(tokenInput ? tokenInput.value : '');
+    const storedToken = normalizeTokenInput(data.token);
 
     if (!data.name) {
       vitalsTokenConfirmed = false;
@@ -766,7 +818,7 @@ if (isVitalsPage) {
       return;
     }
 
-    if (enteredToken !== String(data.token)) {
+    if (enteredToken !== storedToken) {
       vitalsTokenConfirmed = false;
       renderVitalsPage(data);
       updateBanner('Token mismatch. Please confirm the registration token before capturing vitals.', 'amber');
@@ -783,12 +835,13 @@ if (isVitalsPage) {
     const data = getPatientRecord();
     const tokenInput = document.getElementById('vt-token-input');
     const enteredToken = normalizeTokenInput(tokenInput ? tokenInput.value : '');
+    const storedToken = normalizeTokenInput(data.token);
     const bp = cleanFieldValue(document.getElementById('vt-bp').value);
     const hr = cleanFieldValue(document.getElementById('vt-hr').value);
     const temp = cleanFieldValue(document.getElementById('vt-temp').value);
     const spo2 = cleanFieldValue(document.getElementById('vt-spo2').value);
 
-    if (!data.token || enteredToken !== String(data.token) || !vitalsTokenConfirmed) {
+    if (!data.token || enteredToken !== storedToken || !vitalsTokenConfirmed) {
       vitalsTokenConfirmed = false;
       renderVitalsPage(data);
       updateBanner('Confirm the patient token before saving vitals.', 'amber');
@@ -819,15 +872,15 @@ if (isVitalsPage) {
     const data = getPatientRecord();
     const tokenInput = document.getElementById('vt-token-input');
     const enteredToken = normalizeTokenInput(tokenInput ? tokenInput.value : '');
+    const storedToken = normalizeTokenInput(data.token);
 
-    if (vitalsTokenConfirmed && (!data.token || enteredToken !== String(data.token))) {
+    if (vitalsTokenConfirmed && (!data.token || enteredToken !== storedToken)) {
       vitalsTokenConfirmed = false;
     }
 
     renderVitalsPage(data);
   }
 
-  window.useCurrentVitalsToken = useCurrentVitalsToken;
   window.loadVitalsPatientByToken = loadVitalsPatientByToken;
   window.saveVitalsRecord = saveVitalsRecord;
 
@@ -837,6 +890,15 @@ if (isVitalsPage) {
       if (event.key === 'Enter') {
         event.preventDefault();
         loadVitalsPatientByToken();
+      }
+    });
+    tokenInput.addEventListener('input', () => {
+      const data = getPatientRecord();
+      const enteredToken = normalizeTokenInput(tokenInput.value);
+      const storedToken = normalizeTokenInput(data.token);
+      if (vitalsTokenConfirmed && enteredToken !== storedToken) {
+        vitalsTokenConfirmed = false;
+        renderVitalsPage(data);
       }
     });
   }

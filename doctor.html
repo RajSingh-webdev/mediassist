@@ -270,11 +270,11 @@
         <span class="brand-name">MediAI</span>
         <span class="brand-tag">Doctor Panel</span>
       </div>
-      <nav class="staff-nav">
+      <!-- <nav class="staff-nav">
         <a href="staff.html" class="snav">Staff Portal</a>
         <a href="vitals.html" class="snav">Vitals Desk</a>
         <a href="doctor.html" class="snav active">Doctor Panel</a>
-      </nav>
+      </nav> -->
     </div>
     <div class="tb-right">
       <div class="ai-status-doctor"><span class="ai-dot-purple"></span>AI Ready</div>
@@ -319,11 +319,6 @@
         <svg width="12" height="12" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="10" stroke="currentColor" stroke-width="1.8"/><path d="M12 16v-4M12 8h.01" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
         Waiting for a patient to be cleared from vitals desk.
       </div>
-
-      <a href="vitals.html" class="sb-link-btn">
-        <svg width="13" height="13" viewBox="0 0 24 24" fill="none"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
-        Open Vitals Desk
-      </a>
     </aside>
 
     <main class="staff-content doc-content">
@@ -338,7 +333,7 @@
             <svg width="13" height="13" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="10" stroke="currentColor" stroke-width="1.8"/><polyline points="12 6 12 12 16 14" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>
             Loaded: <span id="doc-loaded-time">--</span>
           </div>
-          <button class="hdr-action-btn no-print" onclick="window.print()">
+          <button class="hdr-action-btn no-print" onclick="printPrescription()">
             <svg width="13" height="13" viewBox="0 0 24 24" fill="none"><polyline points="6 9 6 2 18 2 18 9" stroke="currentColor" stroke-width="2"/><path d="M6 18H4a2 2 0 0 1-2-2V11a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2" stroke="currentColor" stroke-width="2"/><rect x="6" y="14" width="12" height="8" stroke="currentColor" stroke-width="2"/></svg>
             Print Prescription
           </button>
@@ -350,13 +345,33 @@
         <span id="allergy-banner-text">Known allergies on record — verify before prescribing.</span>
       </div>
 
+      <div class="s-card s-card-full no-print">
+        <div class="s-card-header">
+          <div>
+            <h2 class="s-card-title">Doctor Lookup</h2>
+            <p class="s-card-sub">Enter the issued token to load the case from the vitals desk</p>
+          </div>
+          <span class="ai-tag" id="doc-ready-tag">Waiting</span>
+        </div>
+        <div class="s-divider"></div>
+        <div class="vitals-lookup-body">
+          <div class="vitals-token-row">
+            <div class="s-field-group">
+              <label class="s-flabel">Patient Token</label>
+              <input type="text" class="s-finput" id="doc-token-input" placeholder="e.g. #042"/>
+            </div>
+            <button class="s-btn s-btn-save" type="button" id="doc-load-btn" onclick="loadDoctorCaseByToken()">Load Case</button>
+          </div>
+          <p class="vitals-helper" id="doc-lookup-helper">Waiting for a patient to complete vitals and receive a token.</p>
+        </div>
+      </div>
+
       <div class="no-patient-state" id="no-patient-state">
         <div class="np-icon">
           <svg width="28" height="28" viewBox="0 0 24 24" fill="none"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" stroke="currentColor" stroke-width="1.8"/><circle cx="9" cy="7" r="4" stroke="currentColor" stroke-width="1.8"/><path d="M23 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>
         </div>
-        <p class="np-title">No patient ready for review</p>
-        <p class="np-sub">A patient must complete registration and have vitals recorded before appearing here.</p>
-        <a href="vitals.html" class="pform-submit-btn" style="margin-top:4px;text-decoration:none">Go to Vitals Desk</a>
+        <p class="np-title" id="doc-empty-title">No patient ready for review</p>
+        <p class="np-sub" id="doc-empty-sub">A patient must complete registration and have vitals recorded before appearing here.</p>
       </div>
 
       <div id="doc-main-content" style="display:none">
@@ -429,6 +444,10 @@
                 <div class="info-field">
                   <span class="info-label">Current Medications</span>
                   <div class="info-val" id="doc-medications">--</div>
+                </div>
+                <div class="info-field info-span3">
+                  <span class="info-label">Staff Notes</span>
+                  <div class="info-val symptom-area" id="doc-staff-notes">--</div>
                 </div>
               </div>
             </div>
@@ -587,7 +606,7 @@
                     <svg width="15" height="15" viewBox="0 0 24 24" fill="none"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14" stroke="currentColor" stroke-width="2"/><polyline points="22 4 12 14.01 9 11.01" stroke="currentColor" stroke-width="2"/></svg>
                     Save &amp; Close Case
                   </button>
-                  <button class="finalize-btn-secondary no-print" onclick="window.print()">
+                  <button class="finalize-btn-secondary no-print" onclick="printPrescription()">
                     <svg width="14" height="14" viewBox="0 0 24 24" fill="none"><polyline points="6 9 6 2 18 2 18 9" stroke="currentColor" stroke-width="2"/><path d="M6 18H4a2 2 0 0 1-2-2V11a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2" stroke="currentColor" stroke-width="2"/><rect x="6" y="14" width="12" height="8" stroke="currentColor" stroke-width="2"/></svg>
                     Print
                   </button>
@@ -617,6 +636,9 @@ function formatDisplayTime(v) {
   if(!v) return '--';
   const dt=new Date(v); if(isNaN(dt)) return '--';
   return dt.toLocaleDateString('en-IN',{day:'2-digit',month:'short'})+' at '+dt.toLocaleTimeString('en-IN',{hour:'2-digit',minute:'2-digit',hour12:true});
+}
+function escapeHtml(v){
+  return String(v??'').replace(/[&<>"']/g,ch=>({ '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;', "'":'&#39;' }[ch]));
 }
 function hasCompleteVitals(d) {
   return Boolean(d&&d.vitals&&cleanVal(d.vitals.bp)&&cleanVal(d.vitals.hr)&&cleanVal(d.vitals.temp)&&cleanVal(d.vitals.spo2));
@@ -749,29 +771,495 @@ function renderDxTags(){
     </div>`).join('');
 }
 
+let doctorTokenConfirmed=false;
+
+function normalizeDoctorToken(value){
+  const digits=String(value||'').replace(/[^0-9]/g,'');
+  return digits?String(Number(digits)):'';
+}
+
+function updateDoctorReadyTag(mode,label){
+  const tag=document.getElementById('doc-ready-tag');
+  if(!tag) return;
+  tag.className='ai-tag';
+  if(mode==='waiting') tag.classList.add('status-waiting');
+  if(mode==='ready') tag.classList.add('status-ready');
+  if(mode==='complete') tag.classList.add('status-complete');
+  tag.textContent=label;
+}
+
+function collectRxDraft(){
+  return rxRows.map(row=>{
+    const rowEl=document.getElementById(`rx-row-${row.id}`);
+    if(!rowEl){
+      return {
+        med: cleanVal(row.med),
+        dose: cleanVal(row.dose),
+        freq: cleanVal(row.freq),
+      };
+    }
+    const inputs=rowEl.querySelectorAll('input,select');
+    return {
+      med: cleanVal(inputs[0]?inputs[0].value:row.med),
+      dose: cleanVal(inputs[1]?inputs[1].value:row.dose),
+      freq: cleanVal(inputs[2]?inputs[2].value:row.freq),
+    };
+  }).filter(item=>item.med||item.dose||item.freq);
+}
+
+function collectDoctorOutputDraft(){
+  return {
+    diagnoses: diagnoses.map(item=>cleanVal(item)).filter(Boolean),
+    rx: collectRxDraft(),
+    tests: Array.from(selectedTests).map(item=>cleanVal(item)).filter(Boolean),
+    advice: Array.from(selectedAdvice).map(item=>cleanVal(item)).filter(Boolean),
+    adviceNotes: cleanVal(document.getElementById('advice-notes')?.value),
+    fuWhen: cleanVal(document.getElementById('fu-when')?.value),
+    fuRefer: cleanVal(document.getElementById('fu-refer')?.value),
+    fuNotes: cleanVal(document.getElementById('fu-notes')?.value),
+  };
+}
+
+function renderPrintList(items, emptyText){
+  if(!items.length){
+    return `<p class="empty-note">${escapeHtml(emptyText)}</p>`;
+  }
+  return `<ul class="print-list">${items.map(item=>`<li>${escapeHtml(item)}</li>`).join('')}</ul>`;
+}
+
+function printPrescription(){
+  const data=getPatientRecord();
+  if(!data.name||!hasCompleteVitals(data)||!doctorTokenConfirmed){
+    showToast('Load the patient case before printing the prescription.');
+    return;
+  }
+
+  const draft=collectDoctorOutputDraft();
+  const printWindow=window.open('', '_blank', 'width=980,height=1100');
+  if(!printWindow){
+    showToast('Enable pop-ups to print the prescription.');
+    return;
+  }
+
+  const vitals=data.vitals||{};
+  const printedAt=formatDisplayTime(new Date().toISOString());
+  const allergies=cleanVal(data.allergies);
+  const followUpItems=[
+    draft.fuWhen?`Follow-up: ${draft.fuWhen}`:'',
+    draft.fuRefer?`Referral: ${draft.fuRefer}`:'',
+    draft.fuNotes?`Instructions: ${draft.fuNotes}`:'',
+  ].filter(Boolean);
+  const rxRowsHtml=draft.rx.length
+    ? draft.rx.map((item,index)=>`
+        <tr>
+          <td>${index+1}</td>
+          <td>${escapeHtml(item.med||'--')}</td>
+          <td>${escapeHtml(item.dose||'--')}</td>
+          <td>${escapeHtml(item.freq||'--')}</td>
+        </tr>`).join('')
+    : `<tr><td colspan="4" class="empty-note empty-table">No medicines prescribed.</td></tr>`;
+
+  const printHtml=`<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Prescription - ${escapeHtml(data.name||'Patient')}</title>
+  <style>
+    @page { margin: 12mm; }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      background: #eef2ff;
+      color: #0f172a;
+      font-family: "Segoe UI", Arial, sans-serif;
+      line-height: 1.45;
+    }
+    .sheet {
+      width: 210mm;
+      min-height: 297mm;
+      margin: 0 auto;
+      padding: 14mm;
+      background: #ffffff;
+    }
+    .header {
+      display: flex;
+      justify-content: space-between;
+      gap: 16px;
+      padding-bottom: 14px;
+      border-bottom: 2px solid #1d4ed8;
+    }
+    .brand-kicker {
+      margin: 0 0 4px;
+      font-size: 11px;
+      font-weight: 700;
+      letter-spacing: 0.18em;
+      text-transform: uppercase;
+      color: #1d4ed8;
+    }
+    .brand-title {
+      margin: 0;
+      font-size: 28px;
+      font-weight: 800;
+      color: #0f172a;
+    }
+    .brand-subtitle {
+      margin: 6px 0 0;
+      font-size: 13px;
+      color: #475569;
+    }
+    .print-meta {
+      min-width: 210px;
+      padding: 12px 14px;
+      border: 1px solid #cbd5e1;
+      border-radius: 14px;
+      background: #f8fafc;
+    }
+    .print-meta p {
+      margin: 0 0 6px;
+      font-size: 12px;
+      color: #334155;
+    }
+    .print-meta p:last-child { margin-bottom: 0; }
+    .section {
+      margin-top: 16px;
+      break-inside: avoid;
+    }
+    .section-title {
+      margin: 0 0 10px;
+      font-size: 13px;
+      font-weight: 800;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      color: #1e3a8a;
+    }
+    .meta-grid {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      gap: 10px;
+    }
+    .meta-card {
+      padding: 10px 12px;
+      border: 1px solid #dbe4f0;
+      border-radius: 12px;
+      background: #f8fafc;
+    }
+    .meta-label {
+      margin: 0 0 4px;
+      font-size: 10px;
+      font-weight: 800;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      color: #64748b;
+    }
+    .meta-value {
+      margin: 0;
+      font-size: 14px;
+      font-weight: 600;
+      color: #0f172a;
+      word-break: break-word;
+    }
+    .allergy-box {
+      margin-top: 12px;
+      padding: 11px 13px;
+      border: 1px solid #f59e0b;
+      border-radius: 12px;
+      background: #fffbeb;
+      color: #92400e;
+      font-size: 13px;
+      font-weight: 700;
+    }
+    .rx-table {
+      width: 100%;
+      border-collapse: collapse;
+      border: 1px solid #dbe4f0;
+      border-radius: 12px;
+      overflow: hidden;
+    }
+    .rx-table th,
+    .rx-table td {
+      padding: 10px 12px;
+      border-bottom: 1px solid #e2e8f0;
+      text-align: left;
+      font-size: 13px;
+      vertical-align: top;
+    }
+    .rx-table th {
+      background: #eff6ff;
+      color: #1e3a8a;
+      font-size: 11px;
+      font-weight: 800;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+    }
+    .rx-table tr:last-child td { border-bottom: none; }
+    .print-list {
+      margin: 0;
+      padding-left: 18px;
+    }
+    .print-list li {
+      margin: 0 0 6px;
+      font-size: 13px;
+      color: #1e293b;
+    }
+    .notes-box {
+      padding: 11px 13px;
+      border: 1px dashed #cbd5e1;
+      border-radius: 12px;
+      background: #f8fafc;
+      font-size: 13px;
+      color: #334155;
+      white-space: pre-wrap;
+    }
+    .empty-note {
+      margin: 0;
+      font-size: 13px;
+      color: #64748b;
+      font-style: italic;
+    }
+    .empty-table {
+      text-align: center;
+      padding: 16px 12px !important;
+    }
+    .footer {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-end;
+      gap: 20px;
+      margin-top: 28px;
+      padding-top: 18px;
+      border-top: 1px solid #dbe4f0;
+    }
+    .footer-note {
+      margin: 0;
+      max-width: 65%;
+      font-size: 12px;
+      color: #64748b;
+    }
+    .signature {
+      min-width: 220px;
+      text-align: center;
+    }
+    .signature-line {
+      border-top: 1px solid #334155;
+      margin-bottom: 6px;
+    }
+    .signature-label {
+      margin: 0;
+      font-size: 12px;
+      color: #475569;
+    }
+    @media print {
+      body { background: #ffffff; }
+      .sheet {
+        width: auto;
+        min-height: auto;
+        margin: 0;
+        padding: 0;
+      }
+    }
+    @media screen and (max-width: 900px) {
+      .sheet { width: 100%; min-height: auto; }
+      .header, .footer { flex-direction: column; }
+      .print-meta, .signature { width: 100%; min-width: 0; }
+      .meta-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    }
+  </style>
+</head>
+<body>
+  <div class="sheet">
+    <div class="header">
+      <div>
+        <p class="brand-kicker">MediAI Consultation</p>
+        <h1 class="brand-title">Prescription Sheet</h1>
+        <p class="brand-subtitle">Doctor-issued prescription summary for the active case.</p>
+      </div>
+      <div class="print-meta">
+        <p><strong>Patient Token:</strong> ${escapeHtml(formatSharedToken(data.token))}</p>
+        <p><strong>Printed:</strong> ${escapeHtml(printedAt)}</p>
+        <p><strong>Status:</strong> ${escapeHtml(data.workflowStage==='consultation_complete'?'Consultation Complete':'Draft Prescription')}</p>
+      </div>
+    </div>
+
+    <div class="section">
+      <h2 class="section-title">Patient Details</h2>
+      <div class="meta-grid">
+        <div class="meta-card">
+          <p class="meta-label">Full Name</p>
+          <p class="meta-value">${escapeHtml(data.name||'--')}</p>
+        </div>
+        <div class="meta-card">
+          <p class="meta-label">Age</p>
+          <p class="meta-value">${escapeHtml(data.age||'--')}</p>
+        </div>
+        <div class="meta-card">
+          <p class="meta-label">Gender</p>
+          <p class="meta-value">${escapeHtml(data.gender||'--')}</p>
+        </div>
+        <div class="meta-card">
+          <p class="meta-label">Vitals</p>
+          <p class="meta-value">BP ${escapeHtml(cleanVal(vitals.bp)||'--')} | HR ${escapeHtml(cleanVal(vitals.hr)||'--')} | Temp ${escapeHtml(cleanVal(vitals.temp)||'--')} | SpO2 ${escapeHtml(cleanVal(vitals.spo2)||'--')}</p>
+        </div>
+      </div>
+      ${allergies?`<div class="allergy-box">Known allergies: ${escapeHtml(allergies)}</div>`:''}
+    </div>
+
+    <div class="section">
+      <h2 class="section-title">Diagnosis</h2>
+      ${renderPrintList(draft.diagnoses,'No diagnosis added yet.')}
+    </div>
+
+    <div class="section">
+      <h2 class="section-title">Prescribed Medicines</h2>
+      <table class="rx-table">
+        <thead>
+          <tr>
+            <th style="width:56px">#</th>
+            <th>Medicine</th>
+            <th style="width:150px">Dosage</th>
+            <th style="width:180px">Frequency</th>
+          </tr>
+        </thead>
+        <tbody>${rxRowsHtml}</tbody>
+      </table>
+    </div>
+
+    <div class="section">
+      <h2 class="section-title">Recommended Tests</h2>
+      ${renderPrintList(draft.tests,'No tests selected.')}
+    </div>
+
+    <div class="section">
+      <h2 class="section-title">Diet and Lifestyle Advice</h2>
+      ${renderPrintList(draft.advice,'No diet or lifestyle advice selected.')}
+      ${draft.adviceNotes?`<div class="notes-box" style="margin-top:10px">${escapeHtml(draft.adviceNotes)}</div>`:''}
+    </div>
+
+    <div class="section">
+      <h2 class="section-title">Follow-Up and Referral</h2>
+      ${renderPrintList(followUpItems,'No follow-up or referral details added.')}
+    </div>
+
+    <div class="footer">
+      <p class="footer-note">This printout includes only the prescription details from the doctor panel and omits the dashboard layout.</p>
+      <div class="signature">
+        <div class="signature-line"></div>
+        <p class="signature-label">Doctor Signature</p>
+      </div>
+    </div>
+  </div>
+</` + `body>
+</` + `html>`;
+
+  printWindow.document.open();
+  printWindow.document.write(printHtml);
+  printWindow.document.close();
+  printWindow.focus();
+  let hasTriggeredPrint=false;
+  const runPrint=()=>{
+    if(hasTriggeredPrint) return;
+    hasTriggeredPrint=true;
+    setTimeout(()=>{
+      try { printWindow.print(); } catch (e) {}
+    },150);
+  };
+  if(typeof printWindow.addEventListener==='function'){
+    printWindow.addEventListener('load', runPrint, { once:true });
+    printWindow.addEventListener('afterprint', ()=>printWindow.close(), { once:true });
+  } else {
+    printWindow.onload=runPrint;
+    printWindow.onafterprint=()=>printWindow.close();
+  }
+  if(printWindow.document.readyState==='complete'){
+    runPrint();
+  }
+}
+
+function loadDoctorCaseByToken(){
+  const data=getPatientRecord();
+  const input=document.getElementById('doc-token-input');
+  const entered=normalizeDoctorToken(input?input.value:'');
+  const storedToken=normalizeDoctorToken(data.token);
+
+  if(!data.name){ doctorTokenConfirmed=false; loadDoctorPage(); showToast('No patient is ready yet.'); return; }
+  if(!hasCompleteVitals(data)){ doctorTokenConfirmed=false; loadDoctorPage(); showToast('Vitals must be completed before doctor review.'); return; }
+  if(!data.token){ doctorTokenConfirmed=false; loadDoctorPage(); showToast('No token is available yet.'); return; }
+  if(!entered){ doctorTokenConfirmed=false; loadDoctorPage(); showToast('Enter the patient token to load the case.'); return; }
+  if(entered!==storedToken){ doctorTokenConfirmed=false; loadDoctorPage(); showToast('Token mismatch. Please verify the patient token.'); return; }
+
+  doctorTokenConfirmed=true;
+  loadDoctorPage();
+  showToast('Case loaded for doctor review.');
+}
+
 function loadDoctorPage(){
   const data=getPatientRecord();
   const hasPatient=Boolean(data&&data.name);
   const vitalsReady=hasCompleteVitals(data);
+  const hasToken=Boolean(data&&data.token);
   const mainContent=document.getElementById('doc-main-content');
   const noPatient=document.getElementById('no-patient-state');
+  const emptyTitle=document.getElementById('doc-empty-title');
+  const emptySub=document.getElementById('doc-empty-sub');
+  const lookupHelper=document.getElementById('doc-lookup-helper');
+  const tokenInput=document.getElementById('doc-token-input');
+  const storedToken=normalizeDoctorToken(data.token);
+  const enteredToken=normalizeDoctorToken(tokenInput?tokenInput.value:'');
 
-  if(!hasPatient||!vitalsReady){
+  if(doctorTokenConfirmed&&(!data.token||enteredToken!==storedToken)){
+    doctorTokenConfirmed=false;
+  }
+
+  if(!hasPatient||!vitalsReady||!hasToken||!doctorTokenConfirmed){
     mainContent.style.display='none';
     noPatient.classList.add('show');
+    document.getElementById('allergy-banner').classList.remove('show');
     document.getElementById('doc-breadcrumb').textContent='No active case';
+    document.getElementById('doc-loaded-time').textContent='--';
     document.getElementById('doc-sb-name').textContent='No patient loaded';
-    document.getElementById('doc-sb-token').textContent='Token Pending';
+    document.getElementById('doc-sb-token').textContent=hasToken?'Token Locked':'Token Pending';
+    document.getElementById('doc-sb-bp').textContent='--';
+    document.getElementById('doc-sb-hr').textContent='--';
+    document.getElementById('doc-sb-temp').textContent='--';
+    document.getElementById('doc-sb-spo2').textContent='--';
+    document.getElementById('doc-sb-reg').textContent='--';
+    document.getElementById('doc-sb-vdone').textContent='--';
+    document.getElementById('doc-sb-stage').textContent='--';
     const badge=document.getElementById('doc-priority-badge');
     badge.className='priority-badge';
     document.getElementById('doc-priority-label').textContent='Awaiting Data';
-    document.getElementById('doc-sb-note').textContent=!hasPatient
-      ?'Waiting for a patient to complete registration.'
-      :'Patient registered but vitals not yet recorded.';
+
+    if(!hasPatient){
+      updateDoctorReadyTag('waiting','Waiting');
+      if(lookupHelper) lookupHelper.textContent='Waiting for registration and vitals to prepare a case for doctor review.';
+      if(emptyTitle) emptyTitle.textContent='No patient ready for review';
+      if(emptySub) emptySub.textContent='A patient must complete registration and have vitals recorded before appearing here.';
+      document.getElementById('doc-sb-note').textContent='Waiting for a patient to complete registration.';
+    } else if(!vitalsReady){
+      updateDoctorReadyTag('waiting','Vitals Pending');
+      if(lookupHelper) lookupHelper.textContent='A token can be used here after the vitals desk saves the patient vitals.';
+      if(emptyTitle) emptyTitle.textContent='Vitals not completed';
+      if(emptySub) emptySub.textContent='Doctor review unlocks only after the vitals desk saves the patient measurements.';
+      document.getElementById('doc-sb-note').textContent='Patient registered but vitals not yet recorded.';
+    } else if(!hasToken){
+      updateDoctorReadyTag('waiting','Token Pending');
+      if(lookupHelper) lookupHelper.textContent='A token must be generated before the doctor can load this case.';
+      if(emptyTitle) emptyTitle.textContent='Token not available';
+      if(emptySub) emptySub.textContent='Generate the patient token first, then enter it here to open the case.';
+      document.getElementById('doc-sb-note').textContent='Waiting for a token from the registration desk.';
+    } else {
+      updateDoctorReadyTag('ready','Ready');
+      if(lookupHelper) lookupHelper.textContent='Enter the issued token above to load this case for doctor review.';
+      if(emptyTitle) emptyTitle.textContent='Token required';
+      if(emptySub) emptySub.textContent='The case is ready, but the correct patient token must be entered before it can be opened.';
+      document.getElementById('doc-sb-note').textContent='Patient is ready, but token confirmation is required.';
+    }
     return;
   }
 
   noPatient.classList.remove('show');
+  updateDoctorReadyTag('complete','Loaded');
+  if(lookupHelper) lookupHelper.textContent='Token confirmed. Case loaded for doctor review.';
   mainContent.style.display='block';
 
   document.getElementById('doc-breadcrumb').textContent=data.name;
@@ -807,6 +1295,7 @@ function loadDoctorPage(){
   document.getElementById('doc-symptoms').textContent=data.symptoms||'--';
   document.getElementById('doc-conditions').textContent=cleanVal(data.conditions)||'None reported';
   document.getElementById('doc-medications').textContent=cleanVal(data.medications)||'None';
+  document.getElementById('doc-staff-notes').textContent=cleanVal(data.staffNotes)||'No staff notes';
 
   const allergies=cleanVal(data.allergies);
   const allergyEl=document.getElementById('doc-allergies');
@@ -888,32 +1377,27 @@ Keep it concise and clinical. The doctor makes final decisions.`;
     btn.disabled=false;
   } catch(err){
     thinking.style.display='none';
-    textEl.textContent='Error connecting to AI. Check your connection and try again.';
+    textEl.textContent='Coming Soon...';
     output.classList.add('visible'); btn.disabled=false;
   }
 }
 
 function finalizeCase(){
-  if(diagnoses.length===0){
+  const draft=collectDoctorOutputDraft();
+  if(draft.diagnoses.length===0){
     showToast('Please add at least one diagnosis before finalizing.');
     document.getElementById('dx-input').focus(); return;
   }
-  const rxData=rxRows.map(row=>{
-    const rowEl=document.getElementById(`rx-row-${row.id}`);
-    if(!rowEl) return row;
-    const inputs=rowEl.querySelectorAll('input,select');
-    return {id:row.id, med:inputs[0]?inputs[0].value:row.med, dose:inputs[1]?inputs[1].value:row.dose, freq:inputs[2]?inputs[2].value:row.freq};
-  });
   const data=getPatientRecord();
   data.doctorOutput={
-    diagnoses:[...diagnoses],
-    rx:rxData,
-    tests:Array.from(selectedTests),
-    advice:Array.from(selectedAdvice),
-    adviceNotes:document.getElementById('advice-notes').value,
-    fuWhen:document.getElementById('fu-when').value,
-    fuRefer:document.getElementById('fu-refer').value,
-    fuNotes:document.getElementById('fu-notes').value,
+    diagnoses:draft.diagnoses,
+    rx:draft.rx,
+    tests:draft.tests,
+    advice:draft.advice,
+    adviceNotes:draft.adviceNotes,
+    fuWhen:draft.fuWhen,
+    fuRefer:draft.fuRefer,
+    fuNotes:draft.fuNotes,
     closedAt:new Date().toISOString(),
   };
   data.workflowStage='consultation_complete';
@@ -922,6 +1406,27 @@ function finalizeCase(){
   status.className='finalize-status ready';
   status.innerHTML=`<svg width="14" height="14" viewBox="0 0 24 24" fill="none"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14" stroke="currentColor" stroke-width="2"/><polyline points="22 4 12 14.01 9 11.01" stroke="currentColor" stroke-width="2"/></svg>Consultation complete — case saved successfully.`;
   showToast('Case finalized and prescription saved.');
+}
+
+window.loadDoctorCaseByToken=loadDoctorCaseByToken;
+
+const doctorTokenInput=document.getElementById('doc-token-input');
+if(doctorTokenInput){
+  doctorTokenInput.addEventListener('keydown',event=>{
+    if(event.key==='Enter'){
+      event.preventDefault();
+      loadDoctorCaseByToken();
+    }
+  });
+  doctorTokenInput.addEventListener('input',()=>{
+    const data=getPatientRecord();
+    const entered=normalizeDoctorToken(doctorTokenInput.value);
+    const stored=normalizeDoctorToken(data.token);
+    if(doctorTokenConfirmed&&entered!==stored){
+      doctorTokenConfirmed=false;
+      loadDoctorPage();
+    }
+  });
 }
 
 renderTests(); renderAdvice(); renderRxList(); loadDoctorPage();

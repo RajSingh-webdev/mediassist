@@ -23,10 +23,10 @@
         <span class="brand-name">MediAI</span>
         <span class="brand-tag">Vitals Desk</span>
       </div>
-      <nav class="staff-nav">
+      <!-- <nav class="staff-nav">
         <a href="staff.html" class="snav">Registration</a>
         <a href="vitals.html" class="snav active">Vitals</a>
-      </nav>
+      </nav> -->
     </div>
     <div class="tb-right">
       <div class="ai-status"><span class="ai-dot"></span>Handoff Live</div>
@@ -72,10 +72,6 @@
         Registration staff must assign a token before vitals can be recorded.
       </div>
 
-      <a href="staff.html" class="sb-link-btn">
-        <svg width="13" height="13" viewBox="0 0 24 24" fill="none"><path d="M15 3H5a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V9l-6-6z" stroke="currentColor" stroke-width="2"/><polyline points="15 3 15 9 21 9" stroke="currentColor" stroke-width="2"/></svg>
-        Open Registration Panel
-      </a>
     </aside>
 
     <main class="staff-content vitals-content">
@@ -112,7 +108,6 @@
               <label class="s-flabel">Registration Token</label>
               <input type="text" class="s-finput" id="vt-token-input" placeholder="e.g. #042"/>
             </div>
-            <button class="s-btn s-btn-edit" type="button" onclick="useCurrentVitalsToken()">Use Current Token</button>
             <button class="s-btn s-btn-save" type="button" id="vt-load-btn" onclick="loadVitalsPatientByToken()">Load Patient</button>
           </div>
           <p class="vitals-helper" id="vt-lookup-helper">Waiting for a registered patient token from the registration desk.</p>
@@ -160,6 +155,10 @@
             <div class="s-field-group s-field-full">
               <label class="s-flabel">Current Medications</label>
               <input type="text" class="s-finput" id="vt-medications" value="" disabled/>
+            </div>
+            <div class="s-field-group s-field-full">
+              <label class="s-flabel">Staff Notes</label>
+              <textarea class="s-finput s-ftextarea" id="vt-staff-notes" disabled></textarea>
             </div>
           </div>
         </div>

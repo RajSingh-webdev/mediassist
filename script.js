@@ -71,18 +71,81 @@ setInterval(updateClock, 1000);
 if (isPatientPage) {
 
   let micActive = false;
-  const patientStatusKey = 'mediAI_patient_status';
+  let latestPatientRegistration = null;
+  let patientRequestInFlight = false;
+  const patientRegisterApiUrl = 'http://localhost:5000/api/patient/register';
 
   function formatPatientToken(token) {
     return `#${String(token).padStart(3, '0')}`;
   }
 
-  function getStoredPatientData() {
-    try {
-      return JSON.parse(localStorage.getItem('mediAI_patient') || '{}');
-    } catch (e) {
-      return {};
-    }
+  function buildSharedPatientRecord(responseData, options = {}) {
+    const patient = responseData && responseData.patient ? responseData.patient : {};
+    const visit = responseData && responseData.visit ? responseData.visit : {};
+
+    return {
+      id: patient.id || options.id || '',
+      patientId: patient.id || options.patientId || '',
+      visitId: visit.id || options.visitId || '',
+      name: patient.name || options.name || '',
+      age: patient.age || options.age || '',
+      gender: patient.gender || options.gender || '',
+      symptoms: visit.symptoms || options.symptoms || '',
+      allergies: visit.allergies || options.allergies || '',
+      conditions: visit.conditions || options.conditions || '',
+      medications: visit.medications || options.medications || '',
+      token: responseData.token || visit.token_number || options.token || '',
+      timestamp: visit.created_at || patient.created_at || options.timestamp || new Date().toISOString(),
+      workflowStage: visit.status || options.workflowStage || 'registered',
+      vitals: visit.vitals || options.vitals || null,
+      staffConfirmed: Boolean(options.staffConfirmed)
+    };
+  }
+
+  function syncPatientReviewFromStore() {
+    if (!latestPatientRegistration || !latestPatientRegistration.visit || !latestPatientRegistration.visit.id) return;
+
+    const stored = getPatientRecord();
+    if (!stored || !stored.visitId) return;
+    if (String(stored.visitId) !== String(latestPatientRegistration.visit.id)) return;
+
+    latestPatientRegistration = {
+      token: stored.token,
+      patient: {
+        id: stored.patientId || stored.id,
+        name: stored.name,
+        age: stored.age,
+        gender: stored.gender
+      },
+      visit: {
+        id: stored.visitId,
+        symptoms: stored.symptoms,
+        allergies: stored.allergies,
+        conditions: stored.conditions,
+        medications: stored.medications,
+        status: stored.workflowStage,
+        token_number: stored.token,
+        created_at: stored.timestamp,
+        vitals: stored.vitals || null
+      },
+      staffConfirmed: Boolean(stored.staffConfirmed)
+    };
+
+    updatePatientReviewStatus();
+  }
+
+  function setPatientSubmitState(isSubmitting) {
+    patientRequestInFlight = isSubmitting;
+    const submitBtn = document.querySelector('.patient-form .pform-submit-btn');
+    if (!submitBtn) return;
+
+    submitBtn.disabled = isSubmitting;
+    submitBtn.style.opacity = isSubmitting ? '0.7' : '';
+    submitBtn.style.cursor = isSubmitting ? 'not-allowed' : '';
+    submitBtn.innerHTML = isSubmitting
+      ? 'Submitting...'
+      : `<svg width="16" height="16" viewBox="0 0 24 24" fill="none"><path d="M5 12h14M12 5l7 7-7 7" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+            Submit`;
   }
 
   function updatePatientReviewStatus() {
@@ -91,18 +154,19 @@ if (isPatientPage) {
 
     const successMsg = successEl.querySelector('.success-msg');
     const tokenStatus = successEl.querySelector('.success-token');
-    const data = getStoredPatientData();
+    const data = latestPatientRegistration;
 
     if (!successMsg || !tokenStatus) return;
 
-    if (data.token) {
-      successMsg.textContent = 'Your information has been reviewed by staff. Please keep this token ready when your turn is called.';
-      tokenStatus.innerHTML = `Your token: <strong>${formatPatientToken(data.token)}</strong>`;
+    if (data && data.staffConfirmed && data.token) {
+      const formattedToken = formatPatientToken(data.token);
+      successMsg.textContent = 'Your registration is complete. Please keep this token ready when your turn is called.';
+      tokenStatus.innerHTML = `Your token: <strong id="success-token-num">${formattedToken}</strong>`;
       return;
     }
 
-    successMsg.textContent = 'Your information has been received and sent for staff review. Please take a seat - your token will be assigned after verification.';
-    tokenStatus.textContent = 'Token status: Pending staff review';
+    successMsg.textContent = 'Your information has been received. Please wait while the staff desk reviews and confirms your registration.';
+    tokenStatus.textContent = 'Token status: Pending staff confirmation';
   }
 
   function showPatientSuccessScreen() {
@@ -121,11 +185,7 @@ if (isPatientPage) {
   }
 
   function restorePatientPageState() {
-    const data = getStoredPatientData();
-    const hasSubmittedRecord = Boolean(data && data.name && data.timestamp);
-    const isAwaitingReview = localStorage.getItem(patientStatusKey) === 'submitted';
-
-    if (hasSubmittedRecord && isAwaitingReview) {
+    if (latestPatientRegistration) {
       showPatientSuccessScreen();
       return;
     }
@@ -218,6 +278,8 @@ if (isPatientPage) {
   }
 
   function submitPatientForm() {
+    if (patientRequestInFlight) return;
+
     const data     = buildPatientSubmissionData();
     const alertEl  = document.getElementById('p-alert');
     hydratePatientFormDefaults(data);
@@ -232,22 +294,62 @@ if (isPatientPage) {
       alertEl.className     = `p-alert p-alert-${analysis.type}`;
       alertEl.innerHTML     = analysis.msg;
       alertEl.style.display = 'flex';
-      setTimeout(() => doSubmit(data), 2000);
+      setPatientSubmitState(true);
+      setTimeout(() => { void doSubmit(data, true); }, 2000);
       return;
     }
     alertEl.style.display = 'none';
-    doSubmit(data);
+    setPatientSubmitState(true);
+    void doSubmit(data, true);
   }
 
-  function doSubmit(preparedData) {
-    const data = {
-      ...(preparedData || buildPatientSubmissionData()),
-      timestamp: new Date().toISOString(),
-      workflowStage: 'submitted'
-    };
-    localStorage.setItem('mediAI_patient', JSON.stringify(data));
-    localStorage.setItem(patientStatusKey, 'submitted');
-    showPatientSuccessScreen();
+  function showRequestError(message) {
+    const alertEl = document.getElementById('p-alert');
+    if (!alertEl) return;
+
+    alertEl.className = 'p-alert p-alert-red';
+    alertEl.textContent = message || 'Unable to submit registration right now. Please try again.';
+    alertEl.style.display = 'flex';
+  }
+
+  async function doSubmit(preparedData, submitStateAlreadySet = false) {
+    const data = preparedData || buildPatientSubmissionData();
+
+    try {
+      if (!submitStateAlreadySet) {
+        setPatientSubmitState(true);
+      }
+
+      const response = await fetch(patientRegisterApiUrl, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(data)
+      });
+
+      const responseData = await response.json().catch(() => ({}));
+
+      if (!response.ok) {
+        throw new Error(responseData.message || 'Registration failed. Please try again.');
+      }
+
+      const sharedPatientRecord = buildSharedPatientRecord(responseData);
+      setPatientRecord(sharedPatientRecord);
+
+      latestPatientRegistration = {
+        token: sharedPatientRecord.token,
+        patient: responseData.patient,
+        visit: responseData.visit,
+        staffConfirmed: false
+      };
+
+      showPatientSuccessScreen();
+    } catch (error) {
+      showRequestError(error.message);
+    } finally {
+      setPatientSubmitState(false);
+    }
   }
 
   function showFieldError(id, msg) {
@@ -273,21 +375,23 @@ if (isPatientPage) {
   }
 
   function resetKiosk() {
+    latestPatientRegistration = null;
     clearPatientForm();
-    localStorage.removeItem(patientStatusKey);
+    setPatientSubmitState(false);
     showPatientFormScreen();
   }
 
   window.addEventListener('storage', (event) => {
-    if (event.key === 'mediAI_patient') updatePatientReviewStatus();
-    if (event.key === patientStatusKey) restorePatientPageState();
+    if (event.key === patientRecordKey) syncPatientReviewFromStore();
   });
-
+  window.addEventListener('focus', syncPatientReviewFromStore);
   window.addEventListener('pageshow', restorePatientPageState);
   document.addEventListener('visibilitychange', () => {
-    if (!document.hidden) restorePatientPageState();
+    if (!document.hidden) {
+      syncPatientReviewFromStore();
+      restorePatientPageState();
+    }
   });
-  setInterval(updatePatientReviewStatus, 1500);
   restorePatientPageState();
 }
 
@@ -484,6 +588,7 @@ if (isStaffPage) {
     if (!d.token) d.token = generateToken();
     d.timestamp   = now.toISOString();
     d.workflowStage = hasCompleteVitals(d) ? 'ready_for_doctor' : 'registered';
+    d.staffConfirmed = true;
     setPatientRecord(d);
     updateTokenDisplay(d.token);
 
@@ -601,7 +706,10 @@ if (isStaffPage) {
 if (isVitalsPage) {
 
   let vitalsTokenConfirmed = false;
+  let activeVitalsPatient = null;
   const vitalsFieldIds = ['vt-bp', 'vt-hr', 'vt-temp', 'vt-spo2'];
+  const patientLookupApiBaseUrl = 'http://localhost:5000/api/patient';
+  const vitalsSaveApiUrl = 'http://localhost:5000/api/vitals';
 
   function setVitalsPageField(id, value) {
     const el = document.getElementById(id);
@@ -616,6 +724,36 @@ if (isVitalsPage) {
   function normalizeTokenInput(value) {
     const digits = String(value || '').replace(/[^0-9]/g, '');
     return digits ? String(Number(digits)) : '';
+  }
+
+  function getActiveVitalsPatient() {
+    return activeVitalsPatient || {};
+  }
+
+  function setActiveVitalsPatient(data) {
+    activeVitalsPatient = data && Object.keys(data).length > 0 ? data : null;
+  }
+
+  function normalizeVitalsPatientResponse(responseData) {
+    const patient = responseData && responseData.patient ? responseData.patient : {};
+    const visit = responseData && responseData.visit ? responseData.visit : {};
+
+    return {
+      id: patient.id,
+      patientId: patient.id,
+      visitId: visit.id,
+      name: patient.name || '',
+      age: patient.age || '',
+      gender: patient.gender || '',
+      symptoms: visit.symptoms || '',
+      allergies: visit.allergies || '',
+      conditions: visit.conditions || '',
+      medications: visit.medications || '',
+      token: responseData.token || visit.token_number || '',
+      timestamp: visit.created_at || patient.created_at || '',
+      workflowStage: visit.status || 'registered',
+      vitals: visit.vitals || null
+    };
   }
 
   function setVitalsInputsEnabled(enabled) {
@@ -789,50 +927,44 @@ if (isVitalsPage) {
     setVitalsInputsEnabled(patientUnlocked);
   }
 
-  function loadVitalsPatientByToken() {
-    const data = getPatientRecord();
+  async function loadVitalsPatientByToken() {
     const tokenInput = document.getElementById('vt-token-input');
     const enteredToken = normalizeTokenInput(tokenInput ? tokenInput.value : '');
-    const storedToken = normalizeTokenInput(data.token);
-
-    if (!data.name) {
-      vitalsTokenConfirmed = false;
-      renderVitalsPage({});
-      showVitalsToast('No registered patient is available yet.');
-      return;
-    }
-
-    if (!data.token) {
-      vitalsTokenConfirmed = false;
-      renderVitalsPage(data);
-      showVitalsToast('Registration must save the record and generate a token first.');
-      return;
-    }
 
     if (!enteredToken) {
       vitalsTokenConfirmed = false;
+      setActiveVitalsPatient(null);
       if (tokenInput) highlightVitalsError(tokenInput);
-      renderVitalsPage(data);
+      renderVitalsPage({});
       updateBanner('Enter the registration token before capturing vitals.', 'amber');
       showVitalsToast('Enter the registration token to continue.');
       return;
     }
 
-    if (enteredToken !== storedToken) {
-      vitalsTokenConfirmed = false;
-      renderVitalsPage(data);
-      updateBanner('Token mismatch. Please confirm the registration token before capturing vitals.', 'amber');
-      showVitalsToast('Token mismatch. Please verify the patient token.');
-      return;
-    }
+    try {
+      const response = await fetch(`${patientLookupApiBaseUrl}/${enteredToken}`);
+      const responseData = await response.json().catch(() => ({}));
 
-    vitalsTokenConfirmed = true;
-    renderVitalsPage(data);
-    showVitalsToast(hasCompleteVitals(data) ? 'Patient loaded. Existing vitals are ready to review.' : 'Patient loaded. Vitals entry is now unlocked.');
+      if (!response.ok) {
+        throw new Error(responseData.message || 'Unable to load patient.');
+      }
+
+      const patientData = normalizeVitalsPatientResponse(responseData);
+      setActiveVitalsPatient(patientData);
+      vitalsTokenConfirmed = true;
+      renderVitalsPage(patientData);
+      showVitalsToast(hasCompleteVitals(patientData) ? 'Patient loaded. Existing vitals are ready to review.' : 'Patient loaded. Vitals entry is now unlocked.');
+    } catch (error) {
+      vitalsTokenConfirmed = false;
+      setActiveVitalsPatient(null);
+      renderVitalsPage({});
+      updateBanner(error.message || 'Patient not found for this token.', 'amber');
+      showVitalsToast(error.message || 'Patient not found for this token.');
+    }
   }
 
-  function saveVitalsRecord() {
-    const data = getPatientRecord();
+  async function saveVitalsRecord() {
+    const data = { ...getActiveVitalsPatient() };
     const tokenInput = document.getElementById('vt-token-input');
     const enteredToken = normalizeTokenInput(tokenInput ? tokenInput.value : '');
     const storedToken = normalizeTokenInput(data.token);
@@ -854,22 +986,48 @@ if (isVitalsPage) {
     if (!temp) { highlightVitalsError(document.getElementById('vt-temp')); return; }
     if (!spo2) { highlightVitalsError(document.getElementById('vt-spo2')); return; }
 
-    data.vitals = {
-      bp,
-      hr,
-      temp,
-      spo2,
-      updatedAt: new Date().toISOString()
-    };
-    data.workflowStage = 'ready_for_doctor';
-    setPatientRecord(data);
-    vitalsTokenConfirmed = true;
-    renderVitalsPage(data);
-    showVitalsToast('Vitals saved. Case is ready for doctor review.');
+    try {
+      const response = await fetch(vitalsSaveApiUrl, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          token_number: Number(enteredToken),
+          blood_pressure: bp,
+          heart_rate: hr,
+          temperature: temp,
+          spo2
+        })
+      });
+
+      const responseData = await response.json().catch(() => ({}));
+
+      if (!response.ok) {
+        throw new Error(responseData.message || 'Unable to save vitals.');
+      }
+
+      data.vitals = {
+        bp,
+        hr,
+        temp,
+        spo2,
+        updatedAt: (responseData.vitals && responseData.vitals.created_at) || new Date().toISOString()
+      };
+      data.workflowStage = 'vitals_done';
+      setActiveVitalsPatient(data);
+      vitalsTokenConfirmed = true;
+      renderVitalsPage(data);
+      updateBanner('Vitals saved. This case is ready for doctor review.', 'blue');
+      showVitalsToast('Vitals saved.');
+    } catch (error) {
+      updateBanner(error.message || 'Unable to save vitals.', 'amber');
+      showVitalsToast(error.message || 'Unable to save vitals.');
+    }
   }
 
   function refreshVitalsPage() {
-    const data = getPatientRecord();
+    const data = getActiveVitalsPatient();
     const tokenInput = document.getElementById('vt-token-input');
     const enteredToken = normalizeTokenInput(tokenInput ? tokenInput.value : '');
     const storedToken = normalizeTokenInput(data.token);
@@ -889,11 +1047,11 @@ if (isVitalsPage) {
     tokenInput.addEventListener('keydown', (event) => {
       if (event.key === 'Enter') {
         event.preventDefault();
-        loadVitalsPatientByToken();
+        void loadVitalsPatientByToken();
       }
     });
     tokenInput.addEventListener('input', () => {
-      const data = getPatientRecord();
+      const data = getActiveVitalsPatient();
       const enteredToken = normalizeTokenInput(tokenInput.value);
       const storedToken = normalizeTokenInput(data.token);
       if (vitalsTokenConfirmed && enteredToken !== storedToken) {
@@ -902,10 +1060,6 @@ if (isVitalsPage) {
       }
     });
   }
-
-  window.addEventListener('storage', (event) => {
-    if (event.key === patientRecordKey) refreshVitalsPage();
-  });
   window.addEventListener('focus', refreshVitalsPage);
   document.addEventListener('visibilitychange', () => {
     if (!document.hidden) refreshVitalsPage();

@@ -772,10 +772,53 @@ function renderDxTags(){
 }
 
 let doctorTokenConfirmed=false;
+const doctorPatientLookupApiBaseUrl='http://localhost:5000/api/patient';
 
 function normalizeDoctorToken(value){
   const digits=String(value||'').replace(/[^0-9]/g,'');
   return digits?String(Number(digits)):'';
+}
+
+function normalizeDoctorCaseResponse(responseData){
+  const patient=responseData&&responseData.patient?responseData.patient:{};
+  const visit=responseData&&responseData.visit?responseData.visit:{};
+  const visitVitals=visit&&visit.vitals?visit.vitals:{};
+
+  return {
+    id: patient.id,
+    patientId: patient.id,
+    visitId: visit.id,
+    name: patient.name||'',
+    age: patient.age||'',
+    gender: patient.gender||'',
+    symptoms: visit.symptoms||'',
+    allergies: visit.allergies||'',
+    conditions: visit.conditions||'',
+    medications: visit.medications||'',
+    token: responseData.token||visit.token_number||'',
+    timestamp: visit.created_at||patient.created_at||'',
+    workflowStage: visit.status==='vitals_done'?'ready_for_doctor':(visit.status||'registered'),
+    vitals: visitVitals&&Object.keys(visitVitals).length>0?{
+      bp: visitVitals.blood_pressure||visitVitals.bp||'',
+      hr: visitVitals.heart_rate||visitVitals.hr||'',
+      temp: visitVitals.temperature||visitVitals.temp||'',
+      spo2: visitVitals.spo2||'',
+      updatedAt: visitVitals.created_at||visitVitals.updatedAt||''
+    }:null
+  };
+}
+
+function persistDoctorCase(data){
+  const stored=getPatientRecord();
+  const sameVisit=Boolean(
+    stored&&stored.visitId&&data&&data.visitId&&String(stored.visitId)===String(data.visitId)
+  );
+
+  const nextData={...data};
+  if(sameVisit&&stored.staffNotes) nextData.staffNotes=stored.staffNotes;
+  if(sameVisit&&stored.doctorOutput) nextData.doctorOutput=stored.doctorOutput;
+  setPatientRecord(nextData);
+  return nextData;
 }
 
 function updateDoctorReadyTag(mode,label){
@@ -1175,21 +1218,51 @@ function printPrescription(){
   }
 }
 
-function loadDoctorCaseByToken(){
-  const data=getPatientRecord();
+async function loadDoctorCaseByToken(){
   const input=document.getElementById('doc-token-input');
   const entered=normalizeDoctorToken(input?input.value:'');
-  const storedToken=normalizeDoctorToken(data.token);
 
-  if(!data.name){ doctorTokenConfirmed=false; loadDoctorPage(); showToast('No patient is ready yet.'); return; }
-  if(!hasCompleteVitals(data)){ doctorTokenConfirmed=false; loadDoctorPage(); showToast('Vitals must be completed before doctor review.'); return; }
-  if(!data.token){ doctorTokenConfirmed=false; loadDoctorPage(); showToast('No token is available yet.'); return; }
   if(!entered){ doctorTokenConfirmed=false; loadDoctorPage(); showToast('Enter the patient token to load the case.'); return; }
-  if(entered!==storedToken){ doctorTokenConfirmed=false; loadDoctorPage(); showToast('Token mismatch. Please verify the patient token.'); return; }
 
-  doctorTokenConfirmed=true;
-  loadDoctorPage();
-  showToast('Case loaded for doctor review.');
+  try {
+    const response=await fetch(`${doctorPatientLookupApiBaseUrl}/${entered}`);
+    const responseData=await response.json().catch(()=>({}));
+
+    if(!response.ok){
+      throw new Error(responseData.message||'Unable to load the patient case.');
+    }
+
+    const caseData=persistDoctorCase(normalizeDoctorCaseResponse(responseData));
+
+    if(!caseData.name){
+      doctorTokenConfirmed=false;
+      loadDoctorPage();
+      showToast('No patient is ready yet.');
+      return;
+    }
+
+    if(!caseData.token){
+      doctorTokenConfirmed=false;
+      loadDoctorPage();
+      showToast('No token is available yet.');
+      return;
+    }
+
+    if(!hasCompleteVitals(caseData)){
+      doctorTokenConfirmed=false;
+      loadDoctorPage();
+      showToast('Vitals must be completed before doctor review.');
+      return;
+    }
+
+    doctorTokenConfirmed=true;
+    loadDoctorPage();
+    showToast('Case loaded for doctor review.');
+  } catch(err){
+    doctorTokenConfirmed=false;
+    loadDoctorPage();
+    showToast(err&&err.message?err.message:'Unable to load the patient case.');
+  }
 }
 
 function loadDoctorPage(){
@@ -1273,7 +1346,7 @@ function loadDoctorPage(){
   document.getElementById('doc-sb-spo2').textContent=cleanVal(data.vitals.spo2)||'--';
   document.getElementById('doc-sb-reg').textContent=formatDisplayTime(data.timestamp);
   document.getElementById('doc-sb-vdone').textContent=vitalsReady?'Yes ✓':'No';
-  document.getElementById('doc-sb-stage').textContent=data.workflowStage==='ready_for_doctor'?'Ready for Doctor':(data.workflowStage||'--');
+  document.getElementById('doc-sb-stage').textContent=(data.workflowStage==='ready_for_doctor'||data.workflowStage==='vitals_done')?'Ready for Doctor':(data.workflowStage||'--');
   document.getElementById('doc-sb-note').textContent='Patient cleared from vitals desk. Review and complete consultation.';
 
   const sym=(data.symptoms||'').toLowerCase();

@@ -47,12 +47,38 @@ function formatDisplayTime(value) {
   );
 }
 
+function isSameStoredPatientRecord(record, storedRecord) {
+  if (!record || !storedRecord) return false;
+
+  if (record.visitId && storedRecord.visitId) {
+    return String(record.visitId) === String(storedRecord.visitId);
+  }
+
+  if (record.patientId && storedRecord.patientId) {
+    return String(record.patientId) === String(storedRecord.patientId);
+  }
+
+  return false;
+}
+
 function getStoredStaffNotes(data = null) {
   const record = data || getPatientRecord();
   const recordNotes = cleanFieldValue(record && record.staffNotes);
   if (recordNotes) return recordNotes;
-  if (record && Object.keys(record).length > 0) return '';
-  return cleanFieldValue(localStorage.getItem('mediAI_notes'));
+
+  const storedRecord = getPatientRecord();
+  const storedRecordNotes = cleanFieldValue(storedRecord && storedRecord.staffNotes);
+  const legacyNotes = cleanFieldValue(localStorage.getItem('mediAI_notes'));
+
+  if (!data) {
+    return storedRecordNotes || legacyNotes;
+  }
+
+  if (isSameStoredPatientRecord(record, storedRecord)) {
+    return storedRecordNotes || legacyNotes;
+  }
+
+  return '';
 }
 
 /* Live Clock */
@@ -404,10 +430,6 @@ if (isStaffPage) {
   const patientFields = ['s-name','s-age','s-gender','s-symptoms','s-allergies','s-conditions','s-medications'];
   const vitalsFields  = ['v-bp','v-hr','v-temp','v-spo2'];
 
-  function generateToken() {
-    return Math.floor(Math.random() * 999) + 1;
-  }
-
   function formatToken(token) {
     return `#${String(token).padStart(3, '0')}`;
   }
@@ -430,7 +452,7 @@ if (isStaffPage) {
   function updateTokenDisplay(token) {
     const tokenEl = document.querySelector('.sb-pid');
     if (!tokenEl) return;
-    tokenEl.textContent = token ? `${formatToken(token)} · P-2041` : 'Token Pending · P-2041';
+    tokenEl.textContent = token ? `Token ${formatToken(token)}` : 'Token Pending';
   }
 
   function setVitalsDisplay(vitals) {
@@ -447,51 +469,101 @@ if (isStaffPage) {
     const sbBp = document.getElementById('sb-bp');
     const sbHr = document.getElementById('sb-hr');
     const sbTemp = document.getElementById('sb-temp');
-    const sbSpo2 = document.getElementById('sb-spo2') || document.querySelectorAll('.staff-sidebar .sb-section')[1]?.querySelectorAll('.sv-val')[3];
+    const sbSpo2 = document.getElementById('sb-spo2');
     if (sbBp) sbBp.textContent = bp;
     if (sbHr) sbHr.textContent = hr;
     if (sbTemp) sbTemp.textContent = temp;
     if (sbSpo2) sbSpo2.textContent = spo2;
   }
 
+  function setText(id, text) {
+    const el = document.getElementById(id);
+    if (el) el.textContent = text;
+  }
+
+  function resetAIAnalysis() {
+    const banner = document.getElementById('ai-alert-banner');
+    const insightText = document.getElementById('ai-insight-text');
+    if (banner) banner.style.display = 'none';
+    if (insightText) insightText.textContent = 'No symptom analysis available yet.';
+    setPriority('Normal', document.querySelector('.ppill-normal'));
+  }
+
+  function resetStaffDisplay() {
+    setVal('s-name', '');
+    setVal('s-age', '');
+    setSelect('s-gender', '');
+    setVal('s-symptoms', '');
+    setVal('s-allergies', '');
+    setVal('s-conditions', '');
+    setVal('s-medications', '');
+    setText('sb-name', 'No active patient');
+    setText('staff-breadcrumb', 'No active patient');
+    setText('last-updated', '—');
+    const notesEl = document.getElementById('staff-notes');
+    if (notesEl) notesEl.value = '';
+    updateTokenDisplay();
+    setVitalsDisplay();
+    resetAIAnalysis();
+  }
+
   function loadPatientData() {
     const raw = localStorage.getItem('mediAI_patient');
     if (!raw) {
-      const notesEl = document.getElementById('staff-notes');
-      if (notesEl) notesEl.value = '';
-      setVitalsDisplay();
+      resetStaffDisplay();
       syncSaveButtonState();
       return;
     }
     try {
       const d = JSON.parse(raw);
-      if (d.name)        { setVal('s-name', d.name); document.getElementById('sb-name').textContent = d.name; }
-      if (d.age)         setVal('s-age',        d.age);
-      if (d.gender)      setSelect('s-gender',  d.gender);
-      if (d.symptoms)    setVal('s-symptoms',    d.symptoms);
-      if (d.allergies)   setVal('s-allergies',   d.allergies);
-      if (d.conditions)  setVal('s-conditions',  d.conditions);
-      if (d.medications) setVal('s-medications', d.medications);
+      const name = cleanFieldValue(d.name);
+      const age = cleanFieldValue(d.age);
+      const gender = cleanFieldValue(d.gender);
+      const symptoms = cleanFieldValue(d.symptoms);
+      const allergies = cleanFieldValue(d.allergies);
+      const conditions = cleanFieldValue(d.conditions);
+      const medications = cleanFieldValue(d.medications);
+
+      setVal('s-name', name);
+      setVal('s-age', age);
+      setSelect('s-gender', gender);
+      setVal('s-symptoms', symptoms);
+      setVal('s-allergies', allergies);
+      setVal('s-conditions', conditions);
+      setVal('s-medications', medications);
+      setText('sb-name', name || 'No active patient');
+      setText('staff-breadcrumb', name || 'No active patient');
       if (document.getElementById('staff-notes')) {
         document.getElementById('staff-notes').value = getStoredStaffNotes(d);
       }
       updateTokenDisplay(d.token);
       setVitalsDisplay(d.vitals);
-      if (d.timestamp) {
-        const ts = new Date(d.timestamp);
-        document.getElementById('last-updated').textContent =
-          ts.toLocaleDateString('en-IN',{day:'2-digit',month:'short'}) + ' at ' +
-          ts.toLocaleTimeString('en-IN',{hour:'2-digit',minute:'2-digit',hour12:true});
+      setText('last-updated', formatDisplayTime(d.timestamp).replace('--', '—'));
+      if (symptoms) {
+        runAIAnalysis(symptoms);
+      } else {
+        resetAIAnalysis();
       }
-      if (d.symptoms) runAIAnalysis(d.symptoms);
-    } catch(e) {}
+    } catch(e) {
+      resetStaffDisplay();
+    }
     syncSaveButtonState();
   }
 
   function setVal(id, val)    { const el = document.getElementById(id); if (el) el.value = val; }
   function setSelect(id, val) {
     const el = document.getElementById(id); if (!el) return;
-    for (let i = 0; i < el.options.length; i++) { if (el.options[i].text === val) { el.selectedIndex = i; break; } }
+    if (!val) {
+      el.selectedIndex = 0;
+      return;
+    }
+    for (let i = 0; i < el.options.length; i++) {
+      if (el.options[i].text === val || el.options[i].value === val) {
+        el.selectedIndex = i;
+        return;
+      }
+    }
+    el.selectedIndex = 0;
   }
 
   function runAIAnalysis(symptoms) {
@@ -578,14 +650,12 @@ if (isStaffPage) {
       now.toLocaleTimeString('en-IN',{hour:'2-digit',minute:'2-digit',hour12:true});
 
     const d = getPatientRecord();
-    const tokenWasPending = !d.token;
     d.name        = name;
     d.age         = document.getElementById('s-age').value.trim();
     d.symptoms    = symptoms;
     d.allergies   = document.getElementById('s-allergies').value.trim();
     d.conditions  = document.getElementById('s-conditions').value.trim();
     d.medications = document.getElementById('s-medications').value.trim();
-    if (!d.token) d.token = generateToken();
     d.timestamp   = now.toISOString();
     d.workflowStage = hasCompleteVitals(d) ? 'ready_for_doctor' : 'registered';
     d.staffConfirmed = true;
@@ -594,25 +664,7 @@ if (isStaffPage) {
 
   isEditing = true;
   toggleEdit();
-  showToast(tokenWasPending ? `Record saved. Token ${formatToken(d.token)} assigned.` : 'Record saved successfully.');
-  }
-
-  function toggleVitalsEditLegacy() {
-    isVitalsEdit = !isVitalsEdit;
-    const btn = document.getElementById('btn-vitals-edit');
-    vitalsFields.forEach(id => { const el = document.getElementById(id); if (el) el.disabled = !isVitalsEdit; });
-
-    if (isVitalsEdit) {
-      btn.innerHTML = `<svg width="13" height="13" viewBox="0 0 24 24" fill="none"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z" stroke="currentColor" stroke-width="2"/><polyline points="17 21 17 13 7 13 7 21" stroke="currentColor" stroke-width="2"/></svg> Save Vitals`;
-      btn.classList.add('s-btn-save'); btn.classList.remove('s-btn-edit');
-    } else {
-      document.getElementById('sb-bp').textContent   = document.getElementById('v-bp').value   || '—';
-      document.getElementById('sb-hr').textContent   = document.getElementById('v-hr').value   || '—';
-      document.getElementById('sb-temp').textContent = document.getElementById('v-temp').value || '—';
-      btn.innerHTML = `<svg width="13" height="13" viewBox="0 0 24 24" fill="none"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" stroke="currentColor" stroke-width="2"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" stroke="currentColor" stroke-width="2"/></svg> Edit`;
-      btn.classList.remove('s-btn-save'); btn.classList.add('s-btn-edit');
-      showToast('Vitals updated.');
-    }
+  showToast(d.token ? 'Record saved successfully.' : 'Record saved. Token is still pending.');
   }
 
   function toggleVitalsEdit() {
@@ -692,11 +744,6 @@ if (isStaffPage) {
 
   updateTokenDisplay();
   loadPatientData();
-
-  const savedNotes = getStoredStaffNotes();
-  if (savedNotes && document.getElementById('staff-notes')) {
-    document.getElementById('staff-notes').value = savedNotes;
-  }
 
   const defaultSymptoms = document.getElementById('s-symptoms') ? document.getElementById('s-symptoms').value : '';
   if (defaultSymptoms) runAIAnalysis(defaultSymptoms);
@@ -847,8 +894,8 @@ if (isVitalsPage) {
 
     document.getElementById('vt-side-name').textContent = patientUnlocked ? data.name : 'No active patient';
     document.getElementById('vt-side-token').textContent = patientUnlocked
-      ? `${formattedToken} - P-2041`
-      : (hasToken ? 'Token Locked' : 'Token Pending - P-2041');
+      ? `Token ${formattedToken}`
+      : (hasToken ? 'Token Locked' : 'Token Pending');
     setVitalsPageText('vt-side-age', patientUnlocked ? data.age : '');
     setVitalsPageText('vt-side-gender', patientUnlocked ? data.gender : '');
     setVitalsPageText('vt-side-submitted', patientUnlocked ? formatDisplayTime(data.timestamp) : '');
@@ -896,8 +943,8 @@ if (isVitalsPage) {
       vitalsTokenConfirmed = false;
       updateStatusBadge('Token Pending', 'waiting');
       updateReadyTag('waiting', 'Token Pending');
-      updateBanner('Registration data is available, but a token must be generated before vitals can be recorded.', 'amber');
-      if (lookupHelper) lookupHelper.textContent = 'Go back to the registration panel and save the record to generate the token.';
+      updateBanner('Registration data is available, but a token is not yet available for this patient.', 'amber');
+      if (lookupHelper) lookupHelper.textContent = 'The registration request must complete successfully before vitals can start.';
       if (sideNote) sideNote.textContent = 'The patient is registered, but the token is still pending from the registration desk.';
     } else if (!vitalsTokenConfirmed) {
       updateStatusBadge('Token Required', 'waiting');

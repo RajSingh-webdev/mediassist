@@ -44,8 +44,8 @@
         <div class="sb-patient-card">
           <img src="https://img.freepik.com/premium-vector/default-avatar-profile-icon-social-media-user-image-gray-avatar-icon-blank-profile-silhouette-vector-illustration_561158-3407.jpg?semt=ais_rp_progressive&w=740&q=80" alt="Patient"/>
           <div>
-            <p class="sb-pname" id="sb-name">James Whitmore</p>
-            <p class="sb-pid">Token #042 · P-2041</p>
+            <p class="sb-pname" id="sb-name">No active patient</p>
+            <p class="sb-pid">Token Pending</p>
           </div>
         </div>
         <div class="priority-badge" id="priority-badge">
@@ -59,15 +59,15 @@
         <div class="sb-vital"><span>Blood Pressure</span><span class="sv-val" id="sb-bp">--</span></div>
         <div class="sb-vital"><span>Heart Rate</span><span class="sv-val" id="sb-hr">--</span></div>
         <div class="sb-vital"><span>Temperature</span><span class="sv-val" id="sb-temp">--</span></div>
-        <div class="sb-vital"><span>SpO₂</span><span class="sv-val">--</span></div>
+        <div class="sb-vital"><span>SpO₂</span><span class="sv-val" id="sb-spo2">--</span></div>
       </div>
 
       <div class="sb-section">
         <p class="sb-heading">SESSION</p>
-        <div class="sb-vital"><span>Admitted</span><span class="sv-val">Mar 19, 2026</span></div>
-        <div class="sb-vital"><span>Ward</span><span class="sv-val">4B · Rm 12</span></div>
-        <div class="sb-vital"><span>Doctor Assigned</span><span class="sv-val">Dr. Sarah Chen</span></div>
-        <div class="sb-vital"><span>Nurse</span><span class="sv-val">N. Patel</span></div>
+        <div class="sb-vital"><span>Admitted</span><span class="sv-val">--</span></div>
+        <div class="sb-vital"><span>Ward</span><span class="sv-val">--</span></div>
+        <div class="sb-vital"><span>Doctor Assigned</span><span class="sv-val">--</span></div>
+        <div class="sb-vital"><span>Nurse</span><span class="sv-val">--</span></div>
       </div>
 
       <div class="sb-note-box">
@@ -85,7 +85,7 @@
 
       <div class="sc-header">
         <div>
-          <div class="sc-breadcrumb">Dashboard <span>/</span> Active Patient <span>/</span> <b>James Whitmore</b></div>
+          <div class="sc-breadcrumb">Dashboard <span>/</span> Active Patient <span>/</span> <b id="staff-breadcrumb">No active patient</b></div>
           <h1 class="sc-title">Patient <em>Record</em></h1>
         </div>
         <div class="sc-header-right">
@@ -132,15 +132,16 @@
           <div class="s-fields">
             <div class="s-field-group">
               <label class="s-flabel">Full Name</label>
-              <input type="text" class="s-finput" id="s-name" value="James Whitmore" disabled/>
+              <input type="text" class="s-finput" id="s-name" disabled/>
             </div>
             <div class="s-field-group">
               <label class="s-flabel">Age</label>
-              <input type="number" class="s-finput" id="s-age" value="54" disabled/>
+              <input type="number" class="s-finput" id="s-age" disabled/>
             </div>
             <div class="s-field-group">
               <label class="s-flabel">Gender</label>
               <select class="s-finput" id="s-gender" disabled>
+                <option>Not set</option>
                 <option>Male</option>
                 <option>Female</option>
                 <option>Other</option>
@@ -148,7 +149,7 @@
             </div>
             <div class="s-field-group s-field-full">
               <label class="s-flabel">Presenting Symptoms</label>
-              <textarea class="s-finput s-ftextarea" id="s-symptoms" disabled>Chest tightness, shortness of breath, mild fever (38.2°C), fatigue since 3 days</textarea>
+              <textarea class="s-finput s-ftextarea" id="s-symptoms" disabled></textarea>
             </div>
             <div class="s-field-group">
               <label class="s-flabel">Known Allergies</label>
@@ -180,7 +181,7 @@
           <div class="notes-body">
             <textarea class="notes-textarea" id="staff-notes" placeholder="Add clinical observations, treatment plan, follow-up instructions..."></textarea>
             <div class="notes-footer">
-              <span class="notes-author">Dr. Sarah Chen · Ward 4B</span>
+              <span class="notes-author">Staff Desk</span>
               <span class="notes-saved" id="notes-saved"></span>
             </div>
           </div>
@@ -210,7 +211,7 @@
                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="10" stroke="#1a56db" stroke-width="1.8"/><path d="M12 16v-4M12 8h.01" stroke="#1a56db" stroke-width="2" stroke-linecap="round"/></svg>
                 Symptom Insight
               </div>
-              <p class="aib-text" id="ai-insight-text">Analysing symptoms...</p>
+              <p class="aib-text" id="ai-insight-text">No symptom analysis available yet.</p>
             </div>
           </div>
         </div>

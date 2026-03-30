@@ -815,7 +815,8 @@ function persistDoctorCase(data){
   );
 
   const nextData={...data};
-  if(sameVisit&&stored.staffNotes) nextData.staffNotes=stored.staffNotes;
+  const storedStaffNotes=cleanVal((stored&&stored.staffNotes)||localStorage.getItem('mediAI_notes'));
+  if(sameVisit&&storedStaffNotes) nextData.staffNotes=storedStaffNotes;
   if(sameVisit&&stored.doctorOutput) nextData.doctorOutput=stored.doctorOutput;
   setPatientRecord(nextData);
   return nextData;
@@ -1316,9 +1317,9 @@ function loadDoctorPage(){
       document.getElementById('doc-sb-note').textContent='Patient registered but vitals not yet recorded.';
     } else if(!hasToken){
       updateDoctorReadyTag('waiting','Token Pending');
-      if(lookupHelper) lookupHelper.textContent='A token must be generated before the doctor can load this case.';
+      if(lookupHelper) lookupHelper.textContent='A registration token must be available before the doctor can load this case.';
       if(emptyTitle) emptyTitle.textContent='Token not available';
-      if(emptySub) emptySub.textContent='Generate the patient token first, then enter it here to open the case.';
+      if(emptySub) emptySub.textContent='Once registration finishes issuing the token, enter it here to open the case.';
       document.getElementById('doc-sb-note').textContent='Waiting for a token from the registration desk.';
     } else {
       updateDoctorReadyTag('ready','Ready');
@@ -1339,7 +1340,7 @@ function loadDoctorPage(){
   document.getElementById('doc-loaded-time').textContent=formatDisplayTime((data.vitals&&data.vitals.updatedAt)||data.timestamp);
 
   document.getElementById('doc-sb-name').textContent=data.name;
-  document.getElementById('doc-sb-token').textContent=`${formatSharedToken(data.token)} · P-2041`;
+  document.getElementById('doc-sb-token').textContent=`Token ${formatSharedToken(data.token)}`;
   document.getElementById('doc-sb-bp').textContent=cleanVal(data.vitals.bp)||'--';
   document.getElementById('doc-sb-hr').textContent=cleanVal(data.vitals.hr)||'--';
   document.getElementById('doc-sb-temp').textContent=cleanVal(data.vitals.temp)||'--';

@@ -7,17 +7,123 @@ const { supabase, hasSupabaseConfig } = require('./supabaseClient');
 
 const app = express();
 const PORT = process.env.PORT || 5000;
+const UNIQUE_VIOLATION_CODE = '23505';
+const TOKEN_NUMBER_RETRY_LIMIT = 5;
+const TOKEN_RESET_MODE = String(process.env.TOKEN_RESET_MODE || 'global').trim().toLowerCase();
+const DAILY_TOKEN_RESET_OFFSET_MINUTES = Number(process.env.DAILY_TOKEN_RESET_OFFSET_MINUTES || 330);
+const MILLISECONDS_PER_DAY = 24 * 60 * 60 * 1000;
 
 app.use(cors());
 app.use(express.json());
 
-function generateTokenNumber() {
-  return Math.floor(100 + Math.random() * 900);
-}
-
 function toNullableString(value) {
   const normalized = String(value || '').trim();
   return normalized || null;
+}
+
+function getDailyTokenWindow(date = new Date()) {
+  const offsetMinutes = Number.isFinite(DAILY_TOKEN_RESET_OFFSET_MINUTES)
+    ? DAILY_TOKEN_RESET_OFFSET_MINUTES
+    : 330;
+  const offsetMilliseconds = offsetMinutes * 60 * 1000;
+  const shiftedDate = new Date(date.getTime() + offsetMilliseconds);
+
+  shiftedDate.setUTCHours(0, 0, 0, 0);
+
+  const start = new Date(shiftedDate.getTime() - offsetMilliseconds);
+  const end = new Date(start.getTime() + MILLISECONDS_PER_DAY);
+
+  return { start, end };
+}
+
+function applyTokenLookupScope(query) {
+  if (TOKEN_RESET_MODE !== 'daily') {
+    return query;
+  }
+
+  const { start, end } = getDailyTokenWindow();
+
+  return query
+    .gte('created_at', start.toISOString())
+    .lt('created_at', end.toISOString());
+}
+
+async function getNextVisitTokenNumber() {
+  const query = applyTokenLookupScope(
+    supabase
+    .from('visits')
+    .select('token_number')
+  );
+
+  const { data: lastVisit, error } = await query
+    .order('token_number', { ascending: false })
+    .limit(1)
+    .maybeSingle();
+
+  if (error) {
+    throw error;
+  }
+
+  const lastTokenNumber = Number(lastVisit?.token_number);
+  return Number.isFinite(lastTokenNumber) ? lastTokenNumber + 1 : 1;
+}
+
+function isTokenNumberConflict(error) {
+  return Boolean(
+    error &&
+    error.code === UNIQUE_VIOLATION_CODE &&
+    String(error.message || '').includes('visits_token_number_key')
+  );
+}
+
+async function createVisitWithUniqueToken(visitPayload) {
+  let lastConflictError = null;
+
+  for (let attempt = 0; attempt < TOKEN_NUMBER_RETRY_LIMIT; attempt += 1) {
+    const tokenNumber = await getNextVisitTokenNumber();
+
+    const { data: visitData, error: visitError } = await supabase
+      .from('visits')
+      .insert({
+        ...visitPayload,
+        token_number: tokenNumber
+      })
+      .select()
+      .single();
+
+    if (!visitError) {
+      return visitData;
+    }
+
+    if (!isTokenNumberConflict(visitError)) {
+      throw visitError;
+    }
+
+    lastConflictError = visitError;
+  }
+
+  const retryError = new Error(
+    TOKEN_RESET_MODE === 'daily'
+      ? 'Unable to assign a daily token number. Update the visits token uniqueness rule to allow token reuse on a new day.'
+      : 'Unable to assign a unique token number. Please try again.'
+  );
+  retryError.cause = lastConflictError;
+  throw retryError;
+}
+
+async function deletePatientIfCreated(patientId) {
+  if (!patientId) {
+    return;
+  }
+
+  const { error } = await supabase
+    .from('patients')
+    .delete()
+    .eq('id', patientId);
+
+  if (error) {
+    console.error(`Failed to clean up patient ${patientId} after registration error:`, error);
+  }
 }
 
 app.get('/api/patient/:token', async (req, res) => {
@@ -38,10 +144,12 @@ app.get('/api/patient/:token', async (req, res) => {
       });
     }
 
-    const { data: visitData, error: visitError } = await supabase
-      .from('visits')
-      .select()
-      .eq('token_number', tokenNumber)
+    const { data: visitData, error: visitError } = await applyTokenLookupScope(
+      supabase
+        .from('visits')
+        .select()
+        .eq('token_number', tokenNumber)
+    )
       .order('id', { ascending: false })
       .limit(1)
       .maybeSingle();
@@ -53,7 +161,9 @@ app.get('/api/patient/:token', async (req, res) => {
     if (!visitData) {
       return res.status(404).json({
         success: false,
-        message: 'Patient not found for this token.'
+        message: TOKEN_RESET_MODE === 'daily'
+          ? 'Patient not found for this token today.'
+          : 'Patient not found for this token.'
       });
     }
 
@@ -134,10 +244,12 @@ app.post('/api/vitals', async (req, res) => {
       });
     }
 
-    const { data: visitData, error: visitError } = await supabase
-      .from('visits')
-      .select()
-      .eq('token_number', tokenNumber)
+    const { data: visitData, error: visitError } = await applyTokenLookupScope(
+      supabase
+        .from('visits')
+        .select()
+        .eq('token_number', tokenNumber)
+    )
       .order('id', { ascending: false })
       .limit(1)
       .maybeSingle();
@@ -149,7 +261,9 @@ app.post('/api/vitals', async (req, res) => {
     if (!visitData) {
       return res.status(404).json({
         success: false,
-        message: 'Invalid token. Visit not found.'
+        message: TOKEN_RESET_MODE === 'daily'
+          ? 'Invalid token for today. Visit not found.'
+          : 'Invalid token. Visit not found.'
       });
     }
 
@@ -226,28 +340,6 @@ app.post('/api/patient/register', async (req, res) => {
       });
     }
 
-    const startOfToday = new Date();
-    startOfToday.setHours(0, 0, 0, 0);
-
-    const startOfTomorrow = new Date(startOfToday);
-    startOfTomorrow.setDate(startOfTomorrow.getDate() + 1);
-
-    const { data: lastVisit, error: lastVisitError } = await supabase
-      .from('visits')
-      .select('token_number')
-      .gte('created_at', startOfToday.toISOString())
-      .lt('created_at', startOfTomorrow.toISOString())
-      .order('token_number', { ascending: false })
-      .limit(1)
-      .maybeSingle();
-
-    if (lastVisitError) {
-      throw lastVisitError;
-    }
-
-    const lastTokenNumber = Number(lastVisit?.token_number);
-    const tokenNumber = Number.isFinite(lastTokenNumber) ? lastTokenNumber + 1 : 1;
-
     const { data: patientData, error: patientError } = await supabase
       .from('patients')
       .insert({
@@ -262,21 +354,19 @@ app.post('/api/patient/register', async (req, res) => {
       throw patientError;
     }
 
-    const { data: visitData, error: visitError } = await supabase
-      .from('visits')
-      .insert({
+    let visitData;
+
+    try {
+      visitData = await createVisitWithUniqueToken({
         patient_id: patientData.id,
         symptoms: normalizedSymptoms,
         allergies: toNullableString(allergies),
         conditions: toNullableString(conditions),
         medications: toNullableString(medications),
-        status: 'registered',
-        token_number: tokenNumber
-      })
-      .select()
-      .single();
-
-    if (visitError) {
+        status: 'registered'
+      });
+    } catch (visitError) {
+      await deletePatientIfCreated(patientData.id);
       throw visitError;
     }
 

@@ -1,22 +1,7 @@
-import express from "express";
-import cors from "cors";
-import morgan from "morgan";
-import { env } from "./config/env.js";
-import apiRoutes from "./routes/index.js";
-import { errorHandler, notFoundHandler } from "./middleware/error-handler.js";
+console.error(
+  'This legacy backend entrypoint is no longer used.\n' +
+  'Start the active backend with "node server.js" inside backend or "npm start" from the project root.\n' +
+  'The supported local API port is 5000.'
+);
 
-const app = express();
-const port = env.port;
-
-app.use(cors());
-app.use(express.json({ limit: "1mb" }));
-app.use(morgan("dev"));
-
-app.use(apiRoutes);
-
-app.use(notFoundHandler);
-app.use(errorHandler);
-
-app.listen(port, () => {
-  console.log(`MediAssist backend running on http://localhost:${port}`);
-});
+process.exit(1);

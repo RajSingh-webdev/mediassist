@@ -1,13 +1,12 @@
-# MediAssist Prototype Backend (PostgreSQL)
+# MediAssist Backend
 
-This is a prototype API backend for the patient flow:
+This folder now uses the same backend entrypoint as the project root:
 
-1. Patient check-in
-2. Staff approval + token generation
-3. Vitals entry
-4. Doctor consultation
+- `backend/server.js`
+- default port `5000`
+- Supabase-backed patient, vitals, and doctor workflow APIs
 
-## 1) Setup
+## Setup
 
 ```bash
 cd backend
@@ -15,79 +14,44 @@ npm install
 copy .env.example .env
 ```
 
-Update `.env` with your PostgreSQL connection string if needed.
+Fill in `.env` with your real Supabase values:
 
-## 2) Prepare DB
+```env
+SUPABASE_URL=https://your-project.supabase.co
+SUPABASE_KEY=your-supabase-key
+PORT=5000
+TOKEN_RESET_MODE=global
+DAILY_TOKEN_RESET_OFFSET_MINUTES=330
+```
 
-Create the database (once):
+## Run
 
 ```bash
-createdb mediassist_proto
+npm start
 ```
 
-Apply schema:
+The backend starts on `http://localhost:5000`.
+
+## Daily Token Reset
+
+If you want daily token numbering instead of globally increasing tokens:
+
+1. Apply `daily-token-reset.sql` to your database.
+2. Set `TOKEN_RESET_MODE=daily`.
+3. Keep `DAILY_TOKEN_RESET_OFFSET_MINUTES=330` for India time.
+
+## Important
+
+The older prototype backend under `backend/src` is no longer the active app path.
+Use `server.js` from either:
 
 ```bash
-psql "$DATABASE_URL" -f sql/schema.sql
+npm start
 ```
 
-## 3) Run
+from the project root, or:
 
 ```bash
-npm run dev
-```
-
-Server starts on `http://localhost:4000`.
-
-## API (Prototype)
-
-- `GET /health`
-- `POST /patients/checkin`
-- `GET /staff/queue`
-- `PATCH /staff/encounters/:id/approve`
-- `GET /encounters/by-token/:token`
-- `GET /encounters/:id/timeline`
-- `PATCH /vitals/encounters/:id`
-- `PATCH /doctor/encounters/:id/consultation`
-
-## Example Payloads
-
-### Patient Check-in
-
-```json
-{
-  "fullName": "Ali Khan",
-  "age": 29,
-  "gender": "Male",
-  "phone": "03001234567",
-  "symptoms": "Fever and sore throat for 2 days",
-  "allergies": "Penicillin",
-  "conditions": "Asthma",
-  "medications": "Inhaler"
-}
-```
-
-### Vitals
-
-```json
-{
-  "bp": "120/80",
-  "hr": 82,
-  "temp": 99.1,
-  "spo2": 98,
-  "updatedBy": "Vitals Desk A"
-}
-```
-
-### Consultation
-
-```json
-{
-  "diagnosis": "Viral pharyngitis",
-  "prescription": "Paracetamol 500mg SOS",
-  "tests": "CBC",
-  "advice": "Hydration and rest",
-  "followUpNotes": "Follow up in 3 days if fever persists",
-  "createdBy": "Dr. Ahmed"
-}
+cd backend
+npm start
 ```

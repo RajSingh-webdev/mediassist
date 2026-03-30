@@ -3,6 +3,7 @@ require('dotenv').config({ path: path.join(__dirname, '.env') });
 
 const express = require('express');
 const cors = require('cors');
+const aiRoutes = require('./routes/ai');
 const { supabase, hasSupabaseConfig } = require('./supabaseClient');
 
 const app = express();
@@ -15,6 +16,7 @@ const MILLISECONDS_PER_DAY = 24 * 60 * 60 * 1000;
 
 app.use(cors());
 app.use(express.json());
+app.use('/api/ai', aiRoutes);
 
 function toNullableString(value) {
   const normalized = String(value || '').trim();

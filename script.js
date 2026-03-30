@@ -97,9 +97,18 @@ setInterval(updateClock, 1000);
 if (isPatientPage) {
 
   let micActive = false;
+  let mediaRecorder = null;
+  let recordedChunks = [];
+  let mediaStream = null;
+  let recordingStartedAt = 0;
+  let patientMicMode = 'idle';
   let latestPatientRegistration = null;
   let patientRequestInFlight = false;
+  let patientMicHandlersBound = false;
+  let isHandlingPatientMicToggle = false;
+  let lastPatientMicToggleAt = 0;
   const patientRegisterApiUrl = 'http://localhost:5000/api/patient/register';
+  const patientTranscribeApiUrl = 'http://localhost:5000/api/ai/transcribe';
 
   function formatPatientToken(token) {
     return `#${String(token).padStart(3, '0')}`;
@@ -219,21 +228,353 @@ if (isPatientPage) {
     showPatientFormScreen();
   }
 
-  function toggleMic() {
-    micActive = !micActive;
-    const btn   = document.getElementById('mic-btn');
+  function setMicUiState(isRecording, statusText = '') {
+    const btn = document.getElementById('mic-btn');
     const label = document.getElementById('mic-label');
-    const bars  = document.getElementById('mic-bars');
-    if (micActive) {
-      btn.classList.add('mic-active');
-      label.innerHTML = `Listening… <span class="mic-soon">(Simulated)</span>`;
-      bars.classList.add('active');
-    } else {
-      btn.classList.remove('mic-active');
-      label.innerHTML = `Tap to speak <span class="mic-soon">(Coming Soon)</span>`;
-      bars.classList.remove('active');
+    const status = document.getElementById('mic-status');
+    const bars = document.getElementById('mic-bars');
+
+    if (btn) btn.classList.toggle('mic-active', isRecording);
+    if (bars) bars.classList.toggle('active', isRecording);
+
+    if (label) {
+      label.innerHTML = isRecording
+        ? 'Listening...'
+        : 'Tap to speak <span class="mic-soon">Voice input</span>';
+    }
+
+    if (status) {
+      status.textContent = statusText;
+      status.style.display = statusText ? 'block' : 'none';
     }
   }
+
+  function showPatientAlert(message, tone = 'blue') {
+    const alertEl = document.getElementById('p-alert');
+    if (!alertEl) return;
+
+    if (!message) {
+      alertEl.style.display = 'none';
+      return;
+    }
+
+    alertEl.className = `p-alert p-alert-${tone}`;
+    alertEl.textContent = message;
+    alertEl.style.display = 'flex';
+  }
+
+  function setMicButtonDisabled(isDisabled) {
+    const btn = document.getElementById('mic-btn');
+    if (!btn) return;
+
+    btn.disabled = isDisabled;
+    btn.style.opacity = isDisabled ? '0.65' : '';
+    btn.style.cursor = isDisabled ? 'not-allowed' : '';
+  }
+
+  function updatePatientMicMode(mode, statusText = '') {
+    patientMicMode = mode;
+
+    if (mode === 'recording') {
+      setMicButtonDisabled(false);
+      setMicUiState(true, statusText || 'Recording...');
+      showPatientAlert('Recording started. Tap the mic again to stop.', 'blue');
+      showProcessingState('');
+      return;
+    }
+
+    if (mode === 'processing') {
+      setMicButtonDisabled(true);
+      setMicUiState(false, statusText || 'Processing audio...');
+      showPatientAlert('Voice captured. AI is transcribing and filling the form...', 'blue');
+      showProcessingState('AI is processing the voice input...');
+      return;
+    }
+
+    if (mode === 'success') {
+      setMicButtonDisabled(false);
+      setMicUiState(false, statusText || 'Voice recognized successfully.');
+      showPatientAlert('Voice recognized and patient details were filled.', 'blue');
+      showProcessingState('');
+      return;
+    }
+
+    if (mode === 'error') {
+      setMicButtonDisabled(false);
+      setMicUiState(false, statusText || 'Unable to process voice input.');
+      showProcessingState('');
+      return;
+    }
+
+    setMicButtonDisabled(false);
+    setMicUiState(false, statusText);
+    showPatientAlert('');
+    showProcessingState('');
+  }
+
+  function showProcessingState(message = '') {
+    const processingEl = document.getElementById('ai-processing-box');
+    if (!processingEl) return;
+
+    processingEl.textContent = message || 'AI is processing the voice input...';
+    processingEl.style.display = message ? 'flex' : 'none';
+  }
+
+  function setFieldIfPresent(id, value) {
+    const el = document.getElementById(id);
+    const normalizedValue = String(value || '').trim();
+    if (!el || !normalizedValue) return;
+    el.value = normalizedValue;
+  }
+
+  function fillPatientFormFromExtractedData(extracted) {
+    if (!extracted || typeof extracted !== 'object') return;
+
+    setFieldIfPresent('p-name', extracted.name);
+    setFieldIfPresent('p-age', extracted.age);
+    setFieldIfPresent('p-symptoms', extracted.symptoms);
+    setFieldIfPresent('p-allergies', extracted.allergies);
+    setFieldIfPresent('p-conditions', extracted.conditions);
+    setFieldIfPresent('p-medications', extracted.medications);
+
+    const genderEl = document.getElementById('p-gender');
+    const gender = String(extracted.gender || '').trim();
+    if (genderEl && gender) {
+      genderEl.value = gender;
+    }
+  }
+
+  function formatPreviewLine(label, value) {
+    return value ? `<strong>${label}:</strong> ${value}` : '';
+  }
+
+  function showTranscriptResult(transcript) {
+    const transcriptBox = document.getElementById('ai-transcript-box');
+    const transcriptText = document.getElementById('ai-transcript-text');
+
+    if (!transcriptBox || !transcriptText) return;
+
+    transcriptText.textContent = transcript;
+    transcriptBox.style.display = transcript ? 'flex' : 'none';
+  }
+
+  function showExtractedPreview(extracted) {
+    const previewBox = document.getElementById('ai-extracted-box');
+    const previewText = document.getElementById('ai-extracted-text');
+
+    if (!previewBox || !previewText) return;
+
+    const lines = [
+      formatPreviewLine('Name', extracted.name),
+      formatPreviewLine('Age', extracted.age),
+      formatPreviewLine('Gender', extracted.gender),
+      formatPreviewLine('Symptoms', extracted.symptoms),
+      formatPreviewLine('Allergies', extracted.allergies),
+      formatPreviewLine('Conditions', extracted.conditions),
+      formatPreviewLine('Medications', extracted.medications)
+    ].filter(Boolean);
+
+    previewText.innerHTML = lines.join('<br/>');
+    previewBox.style.display = lines.length ? 'flex' : 'none';
+  }
+
+  function showAiFillSuccessMessage() {
+    const successEl = document.getElementById('ai-fill-success');
+    if (!successEl) return;
+
+    successEl.style.display = 'flex';
+    setTimeout(() => {
+      successEl.style.display = 'none';
+    }, 2500);
+  }
+
+  function stopMicTracks() {
+    if (!mediaStream) return;
+    mediaStream.getTracks().forEach((track) => track.stop());
+    mediaStream = null;
+  }
+
+  function getRecordedMimeType() {
+    if (typeof MediaRecorder === 'undefined') {
+      return 'audio/webm';
+    }
+
+    const preferredTypes = [
+      'audio/webm;codecs=opus',
+      'audio/webm',
+      'audio/mp4',
+      'audio/ogg;codecs=opus'
+    ];
+
+    return preferredTypes.find((type) => MediaRecorder.isTypeSupported(type)) || '';
+  }
+
+  async function sendRecordingForTranscription(audioBlob) {
+    const formData = new FormData();
+    const extension = audioBlob.type.includes('mp4') ? 'm4a' : 'webm';
+
+    formData.append('audio', audioBlob, `patient-recording.${extension}`);
+
+    const response = await fetch(patientTranscribeApiUrl, {
+      method: 'POST',
+      body: formData
+    });
+
+    const responseData = await response.json().catch(() => ({}));
+
+    if (!response.ok) {
+      throw new Error(responseData.message || 'Unable to transcribe audio right now.');
+    }
+
+    const transcript = String(
+      responseData.transcript ||
+      responseData.text ||
+      ''
+    ).trim();
+
+    const extracted = responseData.extracted || responseData.fields || {};
+
+    showTranscriptResult(transcript);
+    showExtractedPreview(extracted);
+
+    if (!responseData.success || !transcript) {
+      updatePatientMicMode('error', responseData.message || 'No clear speech detected. Please try again.');
+      showPatientAlert(responseData.message || 'No clear speech detected. Please try again.', 'amber');
+      return;
+    }
+
+    if (!extracted || Object.keys(extracted).length === 0) {
+      const symptomsField = document.getElementById('p-symptoms');
+      if (symptomsField && transcript) {
+        symptomsField.value = transcript;
+      }
+    }
+
+    fillPatientFormFromExtractedData(extracted);
+
+    if (!cleanFieldValue(document.getElementById('p-symptoms')?.value) && transcript) {
+      document.getElementById('p-symptoms').value = transcript;
+    }
+
+    showPatientAlert('');
+    showAiFillSuccessMessage();
+    updatePatientMicMode('success', 'Voice recognized successfully.');
+    setTimeout(() => updatePatientMicMode('idle', ''), 1800);
+  }
+
+  async function startMicRecording() {
+    if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+      throw new Error('Microphone access is not supported in this browser.');
+    }
+
+    if (typeof MediaRecorder === 'undefined') {
+      throw new Error('MediaRecorder is not supported in this browser.');
+    }
+
+    mediaStream = await navigator.mediaDevices.getUserMedia({ audio: true });
+    recordedChunks = [];
+    recordingStartedAt = Date.now();
+
+    const mimeType = getRecordedMimeType();
+    mediaRecorder = mimeType
+      ? new MediaRecorder(mediaStream, { mimeType })
+      : new MediaRecorder(mediaStream);
+
+    mediaRecorder.addEventListener('dataavailable', (event) => {
+      if (event.data && event.data.size > 0) {
+        recordedChunks.push(event.data);
+      }
+    });
+
+    mediaRecorder.addEventListener('error', () => {
+      updatePatientMicMode('error', 'Recording failed. Please try again.');
+      showPatientAlert('Recording failed. Please try again.', 'red');
+      stopMicTracks();
+      mediaRecorder = null;
+      micActive = false;
+    });
+
+    mediaRecorder.addEventListener('stop', async () => {
+      const recorderMimeType = mediaRecorder && mediaRecorder.mimeType ? mediaRecorder.mimeType : 'audio/webm';
+      const audioBlob = new Blob(recordedChunks, { type: recorderMimeType });
+
+      stopMicTracks();
+      mediaRecorder = null;
+      micActive = false;
+      updatePatientMicMode('processing', 'Uploading audio...');
+
+      try {
+        if (!audioBlob.size) {
+          throw new Error('No audio was recorded. Please try again.');
+        }
+
+        await sendRecordingForTranscription(audioBlob);
+      } catch (error) {
+        updatePatientMicMode('error', error.message || 'Transcription failed.');
+        showPatientAlert(error.message || 'Transcription failed.', 'red');
+      }
+    });
+
+    mediaRecorder.start();
+    micActive = true;
+    showPatientAlert('');
+    updatePatientMicMode('recording', 'Recording...');
+  }
+
+  function stopMicRecording() {
+    if (!mediaRecorder || mediaRecorder.state === 'inactive') return;
+
+    const recordingDurationMs = Date.now() - recordingStartedAt;
+    if (recordingDurationMs < 800) {
+      updatePatientMicMode('error', 'Please speak for a little longer.');
+      showPatientAlert('Please record for at least 1 second so the AI can hear clearly.', 'amber');
+      stopMicTracks();
+      mediaRecorder = null;
+      micActive = false;
+      return;
+    }
+
+    updatePatientMicMode('processing', 'Processing audio...');
+    mediaRecorder.stop();
+  }
+
+  async function handlePatientMicToggle() {
+    const now = Date.now();
+    if (isHandlingPatientMicToggle) {
+      return;
+    }
+
+    if (now - lastPatientMicToggleAt < 300) {
+      return;
+    }
+
+    lastPatientMicToggleAt = now;
+    isHandlingPatientMicToggle = true;
+
+    if (patientMicMode === 'processing') {
+      isHandlingPatientMicToggle = false;
+      return;
+    }
+
+    try {
+      if (micActive) {
+        stopMicRecording();
+        return;
+      }
+
+      await startMicRecording();
+    } catch (error) {
+      micActive = false;
+      stopMicTracks();
+      mediaRecorder = null;
+      updatePatientMicMode('error', error.message || 'Microphone access failed.');
+      showPatientAlert(error.message || 'Microphone access failed.', 'red');
+    } finally {
+      isHandlingPatientMicToggle = false;
+    }
+  }
+
+  window.toggleMic = handlePatientMicToggle;
 
   function analyseSymptoms(symptoms) {
     const s = symptoms.toLowerCase();
@@ -397,6 +738,21 @@ if (isPatientPage) {
     });
     document.getElementById('p-gender').value = '';
     document.getElementById('p-alert').style.display = 'none';
+    const transcriptBox = document.getElementById('ai-transcript-box');
+    const transcriptText = document.getElementById('ai-transcript-text');
+    const extractedBox = document.getElementById('ai-extracted-box');
+    const extractedText = document.getElementById('ai-extracted-text');
+    const aiFillSuccess = document.getElementById('ai-fill-success');
+    const processingBox = document.getElementById('ai-processing-box');
+    if (transcriptBox) transcriptBox.style.display = 'none';
+    if (transcriptText) transcriptText.textContent = '';
+    if (extractedBox) extractedBox.style.display = 'none';
+    if (extractedText) extractedText.innerHTML = '';
+    if (aiFillSuccess) aiFillSuccess.style.display = 'none';
+    if (processingBox) processingBox.style.display = 'none';
+    patientMicMode = 'idle';
+    setMicButtonDisabled(false);
+    setMicUiState(false, '');
     document.getElementById('p-name').focus();
   }
 
@@ -406,6 +762,15 @@ if (isPatientPage) {
     setPatientSubmitState(false);
     showPatientFormScreen();
   }
+
+  function bindPatientPageActions() {
+    if (patientMicHandlersBound) return;
+    patientMicHandlersBound = true;
+  }
+
+  window.clearPatientForm = clearPatientForm;
+  window.submitPatientForm = submitPatientForm;
+  window.resetKiosk = resetKiosk;
 
   window.addEventListener('storage', (event) => {
     if (event.key === patientRecordKey) syncPatientReviewFromStore();
@@ -419,6 +784,7 @@ if (isPatientPage) {
     }
   });
   restorePatientPageState();
+  bindPatientPageActions();
 }
 
 /* ══ STAFF PAGE ══ */

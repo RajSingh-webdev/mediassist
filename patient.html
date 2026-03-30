@@ -33,15 +33,32 @@
       </div>
 
       <div class="mic-section">
-        <button class="mic-btn" id="mic-btn" onclick="toggleMic()" title="Voice input coming soon">
+        <button class="mic-btn" id="mic-btn" type="button" onclick="if (window.toggleMic) { window.toggleMic(); }" title="Tap to record your voice">
           <svg width="26" height="26" viewBox="0 0 24 24" fill="none">
             <path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z" stroke="currentColor" stroke-width="2"/>
             <path d="M19 10v2a7 7 0 0 1-14 0v-2M12 19v4M8 23h8" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
           </svg>
         </button>
-        <p class="mic-label" id="mic-label">Tap to speak <span class="mic-soon">(Coming Soon)</span></p>
+        <p class="mic-label" id="mic-label">Tap to speak <span class="mic-soon">Voice input</span></p>
+        <p class="mic-label" id="mic-status" aria-live="polite" style="display:none">Recording...</p>
         <div class="mic-bars" id="mic-bars">
           <span></span><span></span><span></span><span></span><span></span>
+        </div>
+        <div class="p-alert p-alert-blue" id="ai-processing-box" aria-live="polite" style="display:none; margin-top:12px;">
+          AI is processing the voice input...
+        </div>
+        <div class="p-alert p-alert-blue" id="ai-fill-success" style="display:none; margin-top:12px;">
+          AI recognized and filled patient details.
+        </div>
+        <div class="p-alert p-alert-blue" id="ai-transcript-box" style="display:none; margin-top:12px; text-align:left;">
+          <strong>Transcript:</strong> <span id="ai-transcript-text"></span>
+        </div>
+        <div class="p-alert p-alert-blue" id="ai-extracted-box" style="display:none; margin-top:12px; text-align:left;">
+          <div>
+            <strong>AI Extracted Details</strong>
+            <div id="ai-extracted-text" style="margin-top:8px; font-weight:500; line-height:1.7;"></div>
+            <div style="margin-top:8px; font-size:0.76rem; opacity:0.85;">Review and edit the form before submitting.</div>
+          </div>
         </div>
       </div>
 
@@ -101,8 +118,8 @@
         <div class="p-alert" id="p-alert" style="display:none"></div>
 
         <div class="pform-actions">
-          <button type="button" class="pform-clear-btn" onclick="clearPatientForm()">Clear</button>
-          <button type="button" class="pform-submit-btn" onclick="submitPatientForm()">
+          <button type="button" class="pform-clear-btn" id="p-clear-btn" onclick="if (window.clearPatientForm) { window.clearPatientForm(); }">Clear</button>
+          <button type="button" class="pform-submit-btn" id="p-submit-btn" onclick="if (window.submitPatientForm) { window.submitPatientForm(); }">
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none"><path d="M5 12h14M12 5l7 7-7 7" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
             Submit
           </button>
@@ -118,7 +135,7 @@
       <h2 class="success-title">Check-In Complete</h2>
       <p class="success-msg">Your information has been received. Please take a seat — a staff member will call your name shortly.</p>
       <p class="success-token">Your token: <strong id="success-token-num"></strong></p>
-      <button class="pform-submit-btn" style="margin-top:24px" onclick="resetKiosk()">New Check-In</button>
+      <button class="pform-submit-btn" id="p-reset-btn" style="margin-top:24px" onclick="if (window.resetKiosk) { window.resetKiosk(); }">New Check-In</button>
     </div>
   </main>
 
@@ -126,6 +143,6 @@
     MediAI Patient Portal &nbsp;·&nbsp; For emergencies, inform staff immediately
   </footer>
 
-  <script src="script.js"></script>
+  <script src="script.js?v=20260330-voicefix"></script>
 </body>
 </html>

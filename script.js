@@ -1067,3 +1067,4 @@ if (isVitalsPage) {
 
   refreshVitalsPage();
 }
+

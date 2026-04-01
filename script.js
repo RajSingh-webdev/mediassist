@@ -81,6 +81,38 @@ function getStoredStaffNotes(data = null) {
   return '';
 }
 
+function resolveApiBaseUrl() {
+  const configuredBaseUrl =
+    (typeof window !== 'undefined' && typeof window.MEDIASSIST_API_BASE_URL === 'string' && window.MEDIASSIST_API_BASE_URL.trim()) ||
+    (typeof localStorage !== 'undefined' && localStorage.getItem('mediAI_api_base_url')) ||
+    '';
+
+  if (configuredBaseUrl) {
+    return configuredBaseUrl.replace(/\/+$/, '');
+  }
+
+  const { protocol, hostname } = window.location;
+  const safeHostname = hostname || 'localhost';
+  const normalizedProtocol = protocol === 'https:' ? 'https:' : 'http:';
+
+  return `${normalizedProtocol}//${safeHostname}:5000`;
+}
+
+function buildApiUrl(path) {
+  const normalizedPath = String(path || '').startsWith('/') ? path : `/${path}`;
+  return `${resolveApiBaseUrl()}${normalizedPath}`;
+}
+
+function mapApiRequestError(error, apiUrl, fallbackMessage) {
+  const rawMessage = String((error && error.message) || '').trim();
+
+  if (/Failed to fetch|NetworkError|Load failed/i.test(rawMessage)) {
+    return `Cannot reach the MediAssist backend at ${apiUrl}. Make sure the backend server is running on port 5000, then try again.`;
+  }
+
+  return rawMessage || fallbackMessage;
+}
+
 /* Live Clock */
 function updateClock() {
   const now = new Date();
@@ -107,8 +139,8 @@ if (isPatientPage) {
   let patientMicHandlersBound = false;
   let isHandlingPatientMicToggle = false;
   let lastPatientMicToggleAt = 0;
-  const patientRegisterApiUrl = 'http://localhost:5000/api/patient/register';
-  const patientTranscribeApiUrl = 'http://localhost:5000/api/ai/transcribe';
+  const patientRegisterApiUrl = buildApiUrl('/api/patient/register');
+  const patientTranscribeApiUrl = buildApiUrl('/api/ai/transcribe');
 
   function formatPatientToken(token) {
     return `#${String(token).padStart(3, '0')}`;
@@ -415,12 +447,25 @@ if (isPatientPage) {
 
     formData.append('audio', audioBlob, `patient-recording.${extension}`);
 
-    const response = await fetch(patientTranscribeApiUrl, {
-      method: 'POST',
-      body: formData
-    });
+    let response;
+    let responseData = {};
 
-    const responseData = await response.json().catch(() => ({}));
+    try {
+      response = await fetch(patientTranscribeApiUrl, {
+        method: 'POST',
+        body: formData
+      });
+
+      responseData = await response.json().catch(() => ({}));
+    } catch (error) {
+      throw new Error(
+        mapApiRequestError(
+          error,
+          patientTranscribeApiUrl,
+          'Unable to transcribe audio right now.'
+        )
+      );
+    }
 
     if (!response.ok) {
       throw new Error(responseData.message || 'Unable to transcribe audio right now.');
@@ -687,15 +732,28 @@ if (isPatientPage) {
         setPatientSubmitState(true);
       }
 
-      const response = await fetch(patientRegisterApiUrl, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify(data)
-      });
+      let response;
+      let responseData = {};
 
-      const responseData = await response.json().catch(() => ({}));
+      try {
+        response = await fetch(patientRegisterApiUrl, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify(data)
+        });
+
+        responseData = await response.json().catch(() => ({}));
+      } catch (error) {
+        throw new Error(
+          mapApiRequestError(
+            error,
+            patientRegisterApiUrl,
+            'Unable to submit registration right now. Please try again.'
+          )
+        );
+      }
 
       if (!response.ok) {
         throw new Error(responseData.message || 'Registration failed. Please try again.');
@@ -1121,8 +1179,8 @@ if (isVitalsPage) {
   let vitalsTokenConfirmed = false;
   let activeVitalsPatient = null;
   const vitalsFieldIds = ['vt-bp', 'vt-hr', 'vt-temp', 'vt-spo2'];
-  const patientLookupApiBaseUrl = 'http://localhost:5000/api/patient';
-  const vitalsSaveApiUrl = 'http://localhost:5000/api/vitals';
+  const patientLookupApiBaseUrl = buildApiUrl('/api/patient');
+  const vitalsSaveApiUrl = buildApiUrl('/api/vitals');
 
   function setVitalsPageField(id, value) {
     const el = document.getElementById(id);
@@ -1355,8 +1413,21 @@ if (isVitalsPage) {
     }
 
     try {
-      const response = await fetch(`${patientLookupApiBaseUrl}/${enteredToken}`);
-      const responseData = await response.json().catch(() => ({}));
+      let response;
+      let responseData = {};
+
+      try {
+        response = await fetch(`${patientLookupApiBaseUrl}/${enteredToken}`);
+        responseData = await response.json().catch(() => ({}));
+      } catch (error) {
+        throw new Error(
+          mapApiRequestError(
+            error,
+            `${patientLookupApiBaseUrl}/${enteredToken}`,
+            'Unable to load patient.'
+          )
+        );
+      }
 
       if (!response.ok) {
         throw new Error(responseData.message || 'Unable to load patient.');
@@ -1400,21 +1471,34 @@ if (isVitalsPage) {
     if (!spo2) { highlightVitalsError(document.getElementById('vt-spo2')); return; }
 
     try {
-      const response = await fetch(vitalsSaveApiUrl, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({
-          token_number: Number(enteredToken),
-          blood_pressure: bp,
-          heart_rate: hr,
-          temperature: temp,
-          spo2
-        })
-      });
+      let response;
+      let responseData = {};
 
-      const responseData = await response.json().catch(() => ({}));
+      try {
+        response = await fetch(vitalsSaveApiUrl, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({
+            token_number: Number(enteredToken),
+            blood_pressure: bp,
+            heart_rate: hr,
+            temperature: temp,
+            spo2
+          })
+        });
+
+        responseData = await response.json().catch(() => ({}));
+      } catch (error) {
+        throw new Error(
+          mapApiRequestError(
+            error,
+            vitalsSaveApiUrl,
+            'Unable to save vitals.'
+          )
+        );
+      }
 
       if (!response.ok) {
         throw new Error(responseData.message || 'Unable to save vitals.');

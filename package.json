@@ -4,7 +4,8 @@
   "description": "Basic backend for the clinic management system prototype",
   "main": "backend/server.js",
   "scripts": {
-    "start": "node backend/server.js"
+    "start": "node backend/server.js",
+    "dev": "node scripts/dev.js"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.39.0",

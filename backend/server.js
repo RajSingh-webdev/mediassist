@@ -11,6 +11,8 @@ const PORT = process.env.PORT || 5000;
 const UNIQUE_VIOLATION_CODE = '23505';
 const TOKEN_NUMBER_RETRY_LIMIT = 5;
 const TOKEN_RESET_MODE = String(process.env.TOKEN_RESET_MODE || 'global').trim().toLowerCase();
+const GLOBAL_TOKEN_UNIQUE_CONSTRAINT = 'visits_token_number_key';
+const DAILY_TOKEN_UNIQUE_INDEX = 'visits_token_number_per_day_idx';
 const DAILY_TOKEN_RESET_OFFSET_MINUTES = Number(process.env.DAILY_TOKEN_RESET_OFFSET_MINUTES || 330);
 const MILLISECONDS_PER_DAY = 24 * 60 * 60 * 1000;
 
@@ -38,8 +40,8 @@ function getDailyTokenWindow(date = new Date()) {
   return { start, end };
 }
 
-function applyTokenLookupScope(query) {
-  if (TOKEN_RESET_MODE !== 'daily') {
+function applyTokenLookupScope(query, resetMode = TOKEN_RESET_MODE) {
+  if (resetMode !== 'daily') {
     return query;
   }
 
@@ -50,11 +52,12 @@ function applyTokenLookupScope(query) {
     .lt('created_at', end.toISOString());
 }
 
-async function getNextVisitTokenNumber() {
+async function getNextVisitTokenNumber(resetMode = TOKEN_RESET_MODE) {
   const query = applyTokenLookupScope(
     supabase
     .from('visits')
-    .select('token_number')
+    .select('token_number'),
+    resetMode
   );
 
   const { data: lastVisit, error } = await query
@@ -71,18 +74,56 @@ async function getNextVisitTokenNumber() {
 }
 
 function isTokenNumberConflict(error) {
+  const combinedErrorText = [
+    error?.message,
+    error?.details,
+    error?.hint,
+    error?.constraint
+  ]
+    .filter(Boolean)
+    .join(' ')
+    .toLowerCase();
+
   return Boolean(
     error &&
     error.code === UNIQUE_VIOLATION_CODE &&
-    String(error.message || '').includes('visits_token_number_key')
+    (
+      combinedErrorText.includes(GLOBAL_TOKEN_UNIQUE_CONSTRAINT) ||
+      combinedErrorText.includes(DAILY_TOKEN_UNIQUE_INDEX) ||
+      combinedErrorText.includes('token_number')
+    )
+  );
+}
+
+function isLegacyGlobalTokenConstraint(error) {
+  const combinedErrorText = [
+    error?.message,
+    error?.details,
+    error?.hint,
+    error?.constraint
+  ]
+    .filter(Boolean)
+    .join(' ')
+    .toLowerCase();
+
+  return Boolean(
+    error &&
+    error.code === UNIQUE_VIOLATION_CODE &&
+    (
+      combinedErrorText.includes(GLOBAL_TOKEN_UNIQUE_CONSTRAINT) ||
+      combinedErrorText.includes('key (token_number)')
+    )
   );
 }
 
 async function createVisitWithUniqueToken(visitPayload) {
   let lastConflictError = null;
+  let useGlobalTokenFallback = false;
 
   for (let attempt = 0; attempt < TOKEN_NUMBER_RETRY_LIMIT; attempt += 1) {
-    const tokenNumber = await getNextVisitTokenNumber();
+    const tokenNumber = await getNextVisitTokenNumber(
+      useGlobalTokenFallback ? 'global' : TOKEN_RESET_MODE
+    );
 
     const { data: visitData, error: visitError } = await supabase
       .from('visits')
@@ -99,6 +140,18 @@ async function createVisitWithUniqueToken(visitPayload) {
 
     if (!isTokenNumberConflict(visitError)) {
       throw visitError;
+    }
+
+    if (
+      TOKEN_RESET_MODE === 'daily' &&
+      !useGlobalTokenFallback &&
+      isLegacyGlobalTokenConstraint(visitError)
+    ) {
+      useGlobalTokenFallback = true;
+      console.warn(
+        'Daily token mode is enabled, but the visits table still enforces global token uniqueness. Falling back to global token numbering for this request.'
+      );
+      continue;
     }
 
     lastConflictError = visitError;
